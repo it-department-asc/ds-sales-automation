@@ -2,15 +2,51 @@
 
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { UserActionsMenu } from "./UserActionsMenu";
 import { EditUserModal } from "./EditUserModal";
+import { TableFilters } from "./TableFilters";
+import { TextHighlight } from "./TextHighlight";
 import { Id } from "../../../convex/_generated/dataModel";
 import { Users } from "lucide-react";
 
 export function AdminDashboard() {
     const allUsers = useQuery(api.users.getAllUsers);
     const [editingUserId, setEditingUserId] = useState<Id<"users"> | null>(null);
+
+    // Filter states
+    const [searchTerm, setSearchTerm] = useState('');
+    const [roleFilter, setRoleFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+
+    // Filtered users based on search and filters
+    const filteredUsers = useMemo(() => {
+        if (!allUsers) return [];
+
+        return allUsers.filter(user => {
+            // Search filter
+            const searchLower = searchTerm.toLowerCase();
+            const matchesSearch = !searchTerm ||
+                user.firstName?.toLowerCase().includes(searchLower) ||
+                user.lastName?.toLowerCase().includes(searchLower) ||
+                user.email?.toLowerCase().includes(searchLower) ||
+                user.storeId?.toLowerCase().includes(searchLower) ||
+                user.branch?.toLowerCase().includes(searchLower) ||
+                user.region?.toLowerCase().includes(searchLower) ||
+                user.province?.toLowerCase().includes(searchLower) ||
+                user.city?.toLowerCase().includes(searchLower) ||
+                user.lessor?.toLowerCase().includes(searchLower) ||
+                user.mallName?.toLowerCase().includes(searchLower);
+
+            // Role filter
+            const matchesRole = !roleFilter || user.role === roleFilter;
+
+            // Status filter
+            const matchesStatus = !statusFilter || user.status === statusFilter;
+
+            return matchesSearch && matchesRole && matchesStatus;
+        });
+    }, [allUsers, searchTerm, roleFilter, statusFilter]);
 
     const handleEdit = (userId: Id<"users">) => {
         setEditingUserId(userId);
@@ -23,6 +59,12 @@ export function AdminDashboard() {
     const handleSuccess = () => {
         // Optional: refresh data or show toast notification
         console.log('User updated successfully');
+    };
+
+    const handleClearFilters = () => {
+        setSearchTerm('');
+        setRoleFilter('');
+        setStatusFilter('');
     };
 
     return (
@@ -42,7 +84,7 @@ export function AdminDashboard() {
                         {/* Mobile count badge */}
                         <div className="sm:hidden">
                             <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold">
-                                {allUsers?.length || 0}
+                                {filteredUsers?.length || 0}
                             </span>
                         </div>
                     </div>
@@ -50,12 +92,28 @@ export function AdminDashboard() {
                     <div className="hidden sm:block">
                         <div className="flex items-center space-x-2 text-sm">
                             <span className="text-gray-500">Total:</span>
-                            <span className="font-semibold text-gray-900">{allUsers?.length || 0}</span>
+                            <span className="font-semibold text-gray-900">{filteredUsers?.length || 0}</span>
                             <span className="text-gray-500">users</span>
+                            {filteredUsers?.length !== allUsers?.length && (
+                                <span className="text-gray-400 text-xs">
+                                    (filtered from {allUsers?.length || 0})
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Filters and Search */}
+            <TableFilters
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                roleFilter={roleFilter}
+                onRoleFilterChange={setRoleFilter}
+                statusFilter={statusFilter}
+                onStatusFilterChange={setStatusFilter}
+                onClearFilters={handleClearFilters}
+            />
 
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
@@ -77,7 +135,7 @@ export function AdminDashboard() {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {allUsers?.map((user) => (
+                            {filteredUsers?.map((user) => (
                                 <tr key={user._id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => handleEdit(user._id)}>
                                     <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap">
                                         <div className="flex items-center">
@@ -88,13 +146,16 @@ export function AdminDashboard() {
                                             </div>
                                             <div className="ml-3">
                                                 <div className="text-sm font-medium text-gray-900">
-                                                    {user.firstName} {user.lastName}
+                                                    <TextHighlight
+                                                        text={`${user.firstName || ''} ${user.lastName || ''}`.trim()}
+                                                        searchTerm={searchTerm}
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
                                     </td>
                                     <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {user.email}
+                                        <TextHighlight text={user.email || ''} searchTerm={searchTerm} />
                                     </td>
                                     <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap">
                                         <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${user.role === 'admin'
@@ -113,25 +174,25 @@ export function AdminDashboard() {
                                         </span>
                                     </td>
                                     <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                        {user.storeId || '-'}
+                                        <TextHighlight text={user.storeId || '-'} searchTerm={searchTerm} />
                                     </td>
                                     <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                        {user.branch || '-'}
+                                        <TextHighlight text={user.branch || '-'} searchTerm={searchTerm} />
                                     </td>
                                     <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                        {user.region || '-'}
+                                        <TextHighlight text={user.region || '-'} searchTerm={searchTerm} />
                                     </td>
                                     <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                        {user.province || '-'}
+                                        <TextHighlight text={user.province || '-'} searchTerm={searchTerm} />
                                     </td>
                                     <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                        {user.city || '-'}
+                                        <TextHighlight text={user.city || '-'} searchTerm={searchTerm} />
                                     </td>
                                     <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                        {user.lessor || '-'}
+                                        <TextHighlight text={user.lessor || '-'} searchTerm={searchTerm} />
                                     </td>
                                     <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                        {user.mallName || '-'}
+                                        <TextHighlight text={user.mallName || '-'} searchTerm={searchTerm} />
                                     </td>
                                     <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm sticky right-0 bg-white border-l border-gray-200" onClick={(e) => e.stopPropagation()}>
                                         <UserActionsMenu
