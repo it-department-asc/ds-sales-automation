@@ -21,10 +21,10 @@ export function SignedInContent() {
 function UserWelcome({ user }: { user: any }) {
   return (
     <>
-      <h1 className="text-5xl md:text-7xl font-bold text-black mb-6">
+      <h1 className="text-2xl md:text-4xl font-bold text-black mb-2 md:mb-4">
         Welcome, {user?.firstName || user?.username || 'User'}
       </h1>
-      <p className="text-xl text-gray-600 mb-12">
+      <p className="text-sm md:text-lg text-gray-600 mb-4 md:mb-6">
         Secure authentication made simple with Clerk.
       </p>
     </>
