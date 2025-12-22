@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as uploadedData from "../uploadedData.js";
 import type * as users from "../users.js";
 
 import type {
@@ -17,6 +18,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  uploadedData: typeof uploadedData;
   users: typeof users;
 }>;
 

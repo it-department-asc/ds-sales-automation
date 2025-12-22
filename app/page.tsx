@@ -6,7 +6,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white">
       <main className="container mx-auto px-4 py-4 md:py-8 flex items-start justify-center min-h-screen">
-        <div className="text-center max-w-6xl w-full">
+        <div className="text-center max-w-8xl w-full">
           <SignedOut>
             <h1 className="text-2xl md:text-4xl font-bold text-black mb-2 md:mb-4">
               Welcome
