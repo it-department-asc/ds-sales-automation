@@ -5,9 +5,9 @@ import { AuthButtons } from './AuthButtons';
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 flex justify-between items-center p-4 bg-white shadow-sm">
+    <header className="sticky top-0 z-50 w-full flex justify-between items-center p-2 sm:p-4 bg-white shadow-sm">
       <div>
-        <h1 className="text-xl font-semibold text-black">
+        <h1 className="text-lg sm:text-xl font-semibold text-black">
           DS
         </h1>
       </div>
