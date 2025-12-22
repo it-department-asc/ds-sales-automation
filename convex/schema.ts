@@ -22,4 +22,11 @@ export default defineSchema({
     .index("by_clerk_id", ["clerkId"])
     .index("by_email", ["email"])
     .index("by_role", ["role"]),
+  uploadedData: defineTable({
+    userId: v.id("users"),
+    fileName: v.string(),
+    data: v.any(), // Parsed data as array of objects
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"]),
 });
