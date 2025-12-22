@@ -25,6 +25,7 @@ export function EditUserModal({ userId, onClose, onSuccess }: EditUserModalProps
   );
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [initialData, setInitialData] = useState<typeof formData | null>(null);
   const [formData, setFormData] = useState({
     role: "user" as "user" | "admin",
     status: "active" as "active" | "blocked",
@@ -40,7 +41,7 @@ export function EditUserModal({ userId, onClose, onSuccess }: EditUserModalProps
   // Initialize form when user data loads
   useEffect(() => {
     if (user) {
-      setFormData({
+      const userData = {
         role: user.role || "user",
         status: user.status || "active",
         storeId: user.storeId || "",
@@ -50,9 +51,16 @@ export function EditUserModal({ userId, onClose, onSuccess }: EditUserModalProps
         city: user.city || "",
         lessor: user.lessor || "",
         mallName: user.mallName || ""
-      });
+      };
+      setFormData(userData);
+      setInitialData(userData);
     }
   }, [user]);
+
+  // Check if form data has changed from initial values
+  const hasChanges = initialData && Object.keys(formData).some(key => 
+    formData[key as keyof typeof formData] !== initialData[key as keyof typeof initialData]
+  );
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -279,7 +287,7 @@ export function EditUserModal({ userId, onClose, onSuccess }: EditUserModalProps
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !hasChanges}
                   className="px-4 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
