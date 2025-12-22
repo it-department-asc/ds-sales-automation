@@ -7,6 +7,7 @@ import { UserActionsMenu } from "./UserActionsMenu";
 import { EditUserModal } from "./EditUserModal";
 import { TableFilters } from "./TableFilters";
 import { TextHighlight } from "./TextHighlight";
+import { EmptyState } from "./EmptyState";
 import { Id } from "../../../convex/_generated/dataModel";
 import { Users } from "lucide-react";
 
@@ -135,7 +136,18 @@ export function AdminDashboard() {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredUsers?.map((user) => (
+                            {filteredUsers?.length === 0 ? (
+                                <tr>
+                                    <td colSpan={12} className="px-4 sm:px-8 py-2 sm:py-4">
+                                        <EmptyState
+                                            type={allUsers?.length === 0 ? 'no-users' : 'no-results'}
+                                            searchTerm={searchTerm}
+                                            onClearFilters={handleClearFilters}
+                                        />
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredUsers?.map((user) => (
                                 <tr key={user._id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => handleEdit(user._id)}>
                                     <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap">
                                         <div className="flex items-center">
@@ -201,7 +213,7 @@ export function AdminDashboard() {
                                         />
                                     </td>
                                 </tr>
-                            ))}
+                            )))}
                         </tbody>
                     </table>
                 </div>
