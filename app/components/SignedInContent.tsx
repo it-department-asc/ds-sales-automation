@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { AdminDashboard } from "../admin/components/AdminDashboard";
 import { UserDashboard } from "../user/components/UserDashboard";
+import { WaitingForBranch } from "./WaitingForBranch";
 import { currentUser } from "@clerk/nextjs/server";
 
 export function SignedInContent() {
@@ -36,7 +37,12 @@ function UserWelcome({ user, currentUser }: { user: any, currentUser: any }) {
 function RoleBasedDashboard({ currentUser }: { currentUser: any }) {
   if (currentUser?.role === 'admin') {
     return <AdminDashboard />;
-  } else {
+  } else if (currentUser?.role === 'user') {
+    // Check if user has store assignment
+    if (!currentUser?.storeId || !currentUser?.branch) {
+      return <WaitingForBranch />;
+    }
     return <UserDashboard currentUser={currentUser} />;
   }
+  return null;
 }
