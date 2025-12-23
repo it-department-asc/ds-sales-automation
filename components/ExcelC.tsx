@@ -10,9 +10,10 @@ type ExcelCProps = {
   onBranchCode?: (branch: string | null) => void;
   existingBranchCode?: string | null;
   clearTrigger?: number;
+  onData?: (data: { headers: string[], rows: any[][] }) => void;
 };
 
-const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clearTrigger }) => {
+const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clearTrigger, onData }) => {
   const { toast } = useToast();
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<any[][]>([]);
@@ -129,6 +130,7 @@ const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clear
       setRows(cleanedRows);
       setFileName(file.name);
       setError(null);
+      if (onData) onData({ headers: realHeaders, rows: cleanedRows });
     } catch (err) {
       setError('Failed to parse file.');
       setBranchCode(null);
