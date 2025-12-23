@@ -20,6 +20,8 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
   const [excelBData, setExcelBData] = useState<{ headers: string[], rows: any[][] } | null>(null);
   const [excelCData, setExcelCData] = useState<{ headers: string[], rows: any[][] } | null>(null);
   const [branchCode, setBranchCode] = useState<string | null>(null);
+  const [transactionCount, setTransactionCount] = useState<number | undefined>(undefined);
+  const [headCount, setHeadCount] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     const testToken = async () => {
@@ -171,33 +173,7 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
                             });
                             return obj;
                           });
-                          if (previewRows.length > 0) {
-                            return (
-                              <div className="mt-2 w-full">
-                                <span className="text-xs text-gray-700 font-semibold">Preview of uploaded file (LocalStorage):</span>
-                                <div className="overflow-x-auto mt-1 border rounded bg-gray-50 max-h-[32rem]" style={{maxHeight:'32rem', minWidth:'100%'}}>
-                                  <table className="min-w-[80rem] max-w-[180rem] w-full text-sm text-left">
-                                    <thead>
-                                      <tr>
-                                        {Object.keys(previewRows[0]).map((key: string) => (
-                                          <th key={key} className="px-4 py-2 border-b font-bold bg-gray-100 text-base">{key}</th>
-                                        ))}
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {previewRows.map((row: { [key: string]: any }, idx: number) => (
-                                        <tr key={idx}>
-                                          {Object.values(row).map((val: any, i: number) => (
-                                            <td key={i} className="px-4 py-2 border-b text-base">{String(val)}</td>
-                                          ))}
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            );
-                          }
+
                         }
                       } catch {}
                     }
@@ -253,8 +229,32 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
           currentUser={currentUser}
         />
 
-        {excelBData && excelCData && branchCode && (
-          <div className="mt-8 text-center">
+        <div className="mt-8 text-center">
+          <div className="mb-4 flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col">
+              <label htmlFor="transactionCount" className="text-sm font-medium text-gray-700 mb-1">Transaction Count</label>
+              <input
+                id="transactionCount"
+                type="number"
+                value={transactionCount ?? ''}
+                onChange={(e) => setTransactionCount(e.target.value ? parseInt(e.target.value) : undefined)}
+                className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter transaction count"
+              />
+            </div>
+            <div className="flex flex-col">
+              <label htmlFor="headCount" className="text-sm font-medium text-gray-700 mb-1">Head Count</label>
+              <input
+                id="headCount"
+                type="number"
+                value={headCount ?? ''}
+                onChange={(e) => setHeadCount(e.target.value ? parseInt(e.target.value) : undefined)}
+                className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter head count"
+              />
+            </div>
+          </div>
+          {excelBData && excelCData && branchCode && transactionCount !== undefined && headCount !== undefined && (
             <button
               className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded shadow"
               onClick={async () => {
@@ -339,12 +339,16 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
                     city: currentUser?.city,
                     lessor: currentUser?.lessor,
                     mallName: currentUser?.mallName,
+                    transactionCount,
+                    headCount,
                   });
                   alert('Sales summary saved successfully!');
                   // Reset data
                   setExcelBData(null);
                   setExcelCData(null);
                   setBranchCode(null);
+                  setTransactionCount(undefined);
+                  setHeadCount(undefined);
                 } catch (error) {
                   console.error('Error saving sales summary:', error);
                   alert('Failed to save sales summary.');
@@ -353,8 +357,8 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
             >
               Save Sales Summary
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     );
   }

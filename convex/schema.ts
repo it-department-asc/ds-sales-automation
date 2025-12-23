@@ -51,6 +51,8 @@ export default defineSchema({
     city: v.optional(v.string()),
     lessor: v.optional(v.string()),
     mallName: v.optional(v.string()),
+    transactionCount: v.optional(v.number()),
+    headCount: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_user", ["userId"]),

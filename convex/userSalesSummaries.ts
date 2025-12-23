@@ -23,6 +23,8 @@ export const saveUserSalesSummary = mutation({
     city: v.optional(v.string()),
     lessor: v.optional(v.string()),
     mallName: v.optional(v.string()),
+    transactionCount: v.optional(v.number()),
+    headCount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -58,6 +60,8 @@ export const saveUserSalesSummary = mutation({
       city: args.city,
       lessor: args.lessor,
       mallName: args.mallName,
+      transactionCount: args.transactionCount,
+      headCount: args.headCount,
       createdAt: Date.now(),
     });
   },

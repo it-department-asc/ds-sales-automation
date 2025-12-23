@@ -96,6 +96,8 @@ export function AdminDashboard() {
             'Non-Regular Amt': summary.nonRegularAmt,
             'Total Qty Sold': summary.totalQtySold,
             'Total Amt': summary.totalAmt,
+            'Transaction Count': summary.transactionCount || '',
+            'Head Count': summary.headCount || '',
         }));
 
         // Create workbook and worksheet
@@ -122,6 +124,8 @@ export function AdminDashboard() {
             { wch: 15 }, // Non-Regular Amt
             { wch: 15 }, // Total Qty Sold
             { wch: 12 }, // Total Amt
+            { wch: 18 }, // Transaction Count
+            { wch: 12 }, // Head Count
         ];
         ws['!cols'] = colWidths;
 
