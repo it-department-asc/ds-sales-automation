@@ -16,6 +16,13 @@ export const saveUserSalesSummary = mutation({
     creditNote: v.number(),
     totalPayments: v.number(),
     amountsMatch: v.boolean(),
+    storeId: v.optional(v.string()),
+    branch: v.optional(v.string()),
+    region: v.optional(v.string()),
+    province: v.optional(v.string()),
+    city: v.optional(v.string()),
+    lessor: v.optional(v.string()),
+    mallName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -44,6 +51,13 @@ export const saveUserSalesSummary = mutation({
       creditNote: args.creditNote.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       totalPayments: args.totalPayments.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       amountsMatch: args.amountsMatch,
+      storeId: args.storeId,
+      branch: args.branch,
+      region: args.region,
+      province: args.province,
+      city: args.city,
+      lessor: args.lessor,
+      mallName: args.mallName,
       createdAt: Date.now(),
     });
   },
