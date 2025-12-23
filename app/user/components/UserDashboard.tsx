@@ -332,6 +332,13 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
                     creditNote,
                     totalPayments,
                     amountsMatch,
+                    storeId: currentUser?.storeId,
+                    branch: currentUser?.branch,
+                    region: currentUser?.region,
+                    province: currentUser?.province,
+                    city: currentUser?.city,
+                    lessor: currentUser?.lessor,
+                    mallName: currentUser?.mallName,
                   });
                   alert('Sales summary saved successfully!');
                   // Reset data

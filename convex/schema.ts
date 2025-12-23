@@ -44,6 +44,13 @@ export default defineSchema({
     creditNote: v.optional(v.union(v.number(), v.string())),
     totalPayments: v.optional(v.union(v.number(), v.string())),
     amountsMatch: v.optional(v.boolean()),
+    storeId: v.optional(v.string()),
+    branch: v.optional(v.string()),
+    region: v.optional(v.string()),
+    province: v.optional(v.string()),
+    city: v.optional(v.string()),
+    lessor: v.optional(v.string()),
+    mallName: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index("by_user", ["userId"]),
