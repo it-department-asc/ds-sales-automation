@@ -7,6 +7,7 @@ type ExcelBranchCompareProps = {
   onExcelBData?: (data: { headers: string[], rows: any[][] }) => void;
   onExcelCData?: (data: { headers: string[], rows: any[][] }) => void;
   onBranchCode?: (branch: string | null) => void;
+  currentUser?: any;
 };
 
 const ExcelBranchCompare: React.FC<ExcelBranchCompareProps> = ({
@@ -14,6 +15,7 @@ const ExcelBranchCompare: React.FC<ExcelBranchCompareProps> = ({
   onExcelBData,
   onExcelCData,
   onBranchCode,
+  currentUser,
 }) => {
   const [branchCode, setBranchCode] = useState<string | null>(null);
   const [clearTrigger, setClearTrigger] = useState<number>(0);
@@ -37,12 +39,14 @@ const ExcelBranchCompare: React.FC<ExcelBranchCompareProps> = ({
         existingBranchCode={branchCode}
         clearTrigger={clearTrigger}
         onData={onExcelBData}
+        currentUser={currentUser}
       />
       <ExcelC
         onBranchCode={handleBranchCode}
         existingBranchCode={branchCode}
         clearTrigger={clearTrigger}
         onData={onExcelCData}
+        currentUser={currentUser}
       />
       {branchCode && (
         <div className="mt-4 text-center">
