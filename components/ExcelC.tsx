@@ -150,6 +150,9 @@ const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clear
       setFileName(file.name);
       setError(null);
       if (onData) onData({ headers: realHeaders, rows: cleanedRows });
+      
+      // Reset file input to allow re-uploading the same file
+      if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       setError('Failed to parse file.');
       setBranchCode(null);
@@ -179,6 +182,24 @@ const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clear
       <h2 className="text-2xl font-bold mb-2 text-center">
         Upload Post Collection Report {branchCode ? ` - ${branchCode}` : ''}
       </h2>
+      <p className="text-gray-600 mb-6 text-center">Upload your ExcelC file (.xlsx, .xls, .csv) to compare sales with product data.</p>
+      {fileName && (
+        <div className="mb-4 text-center">
+          File Uploaded:{" "}
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-sm bg-green-100 text-green-800">
+             📄 {fileName}
+            <button
+              onClick={handleClear}
+              className="ml-2 hover:bg-red-200 rounded-full p-1 transition-colors"
+              title="Clear uploaded file"
+            >
+              <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </span>
+        </div>
+      )}
       <div
         className="flex flex-col items-center justify-center border-2 border-dashed border-blue-400 rounded-lg p-6 mb-4 cursor-pointer bg-blue-50 hover:bg-blue-100 transition"
         onClick={() => fileInputRef.current?.click()}
@@ -195,15 +216,6 @@ const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clear
         />
         <span className="text-blue-700 font-semibold text-lg mb-2">Drag & drop your file here</span>
         <span className="text-gray-500 text-sm">or click to select a file</span>
-      </div>
-      <div className="flex justify-center mb-4">
-        <button
-          className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-6 rounded shadow disabled:opacity-50"
-          onClick={handleClear}
-          disabled={rows.length === 0 && !error}
-        >
-          Clear Uploaded File
-        </button>
       </div>
       {error && <div className="text-red-600 font-medium mb-4 text-center">{error}</div>}
       {headers.length > 0 && rows.length > 0 && (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ExcelB from './ExcelB';
 import ExcelC from './ExcelC';
 
@@ -7,6 +7,8 @@ type ExcelBranchCompareProps = {
   onExcelBData?: (data: { headers: string[], rows: any[][] }) => void;
   onExcelCData?: (data: { headers: string[], rows: any[][] }) => void;
   onBranchCode?: (branch: string | null) => void;
+  onClear?: () => void;
+  clearTrigger?: number;
   currentUser?: any;
 };
 
@@ -15,6 +17,8 @@ const ExcelBranchCompare: React.FC<ExcelBranchCompareProps> = ({
   onExcelBData,
   onExcelCData,
   onBranchCode,
+  onClear,
+  clearTrigger: externalClearTrigger,
   currentUser,
 }) => {
   const [branchCode, setBranchCode] = useState<string | null>(null);
@@ -29,7 +33,14 @@ const ExcelBranchCompare: React.FC<ExcelBranchCompareProps> = ({
     setBranchCode(null);
     setClearTrigger(prev => prev + 1);
     if (onBranchCode) onBranchCode(null);
+    if (onClear) onClear();
   };
+
+  useEffect(() => {
+    if (externalClearTrigger && externalClearTrigger > 0) {
+      handleClear();
+    }
+  }, [externalClearTrigger]);
 
   return (
     <div>

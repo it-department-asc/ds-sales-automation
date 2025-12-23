@@ -6,18 +6,18 @@ import { api } from "../../convex/_generated/api";
 import { AdminDashboard } from "../admin/components/AdminDashboard";
 import { UserDashboard } from "../user/components/UserDashboard";
 import { WaitingForBranch } from "./WaitingForBranch";
-import { currentUser } from "@clerk/nextjs/server";
+import { Loading } from "../../components/ui/loading";
 
 export function SignedInContent() {
-  const { user } = useUser();
+  const { user, isLoaded: clerkLoaded } = useUser();
   const currentUser = useQuery(api.users.getCurrentUser);
 
-  return (
-    <>
-      <UserWelcome user={user} currentUser={currentUser} />
-      <RoleBasedDashboard currentUser={currentUser} />
-    </>
-  );
+  // Show loading immediately on login until all data is fully loaded
+  if (!clerkLoaded || !user || currentUser === undefined) {
+    return <Loading />;
+  }
+
+  return <RoleBasedDashboard user={user} currentUser={currentUser} />;
 }
 
 function UserWelcome({ user, currentUser }: { user: any, currentUser: any }) {
@@ -25,7 +25,7 @@ function UserWelcome({ user, currentUser }: { user: any, currentUser: any }) {
   return (
     <>
       <h1 className="text-2xl md:text-4xl font-bold text-black mb-2 md:mb-4">
-        Welcome, {user?.firstName || user?.username || 'User'} {storeInfo && `-${storeInfo}`}
+        Welcome, {user?.firstName || user?.username || 'User'}
       </h1>
       <p className="text-sm md:text-lg text-gray-600 mb-4 md:mb-6">
         Secure authentication made simple with Clerk.
@@ -34,15 +34,30 @@ function UserWelcome({ user, currentUser }: { user: any, currentUser: any }) {
   );
 }
 
-function RoleBasedDashboard({ currentUser }: { currentUser: any }) {
+function RoleBasedDashboard({ user, currentUser }: { user: any, currentUser: any }) {
   if (currentUser?.role === 'admin') {
-    return <AdminDashboard />;
+    return (
+      <>
+        <UserWelcome user={user} currentUser={currentUser} />
+        <AdminDashboard />
+      </>
+    );
   } else if (currentUser?.role === 'user') {
     // Check if user has store assignment
     if (!currentUser?.storeId || !currentUser?.branch) {
-      return <WaitingForBranch />;
+      return (
+        <>
+          <UserWelcome user={user} currentUser={currentUser} />
+          <WaitingForBranch />
+        </>
+      );
     }
-    return <UserDashboard currentUser={currentUser} />;
+    return (
+      <>
+        <UserWelcome user={user} currentUser={currentUser} />
+        <UserDashboard currentUser={currentUser} />
+      </>
+    );
   }
-  return null;
+  return <Loading />;
 }
