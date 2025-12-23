@@ -10,6 +10,12 @@ export const saveUserSalesSummary = mutation({
     nonRegularAmt: v.number(),
     totalQtySold: v.number(),
     totalAmt: v.number(),
+    cashCheck: v.number(),
+    charge: v.number(),
+    gc: v.number(),
+    creditNote: v.number(),
+    totalPayments: v.number(),
+    amountsMatch: v.boolean(),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -32,6 +38,12 @@ export const saveUserSalesSummary = mutation({
       nonRegularAmt: args.nonRegularAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       totalQtySold: args.totalQtySold,
       totalAmt: args.totalAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      cashCheck: args.cashCheck.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      charge: args.charge.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      gc: args.gc.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      creditNote: args.creditNote.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      totalPayments: args.totalPayments.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      amountsMatch: args.amountsMatch,
       createdAt: Date.now(),
     });
   },
