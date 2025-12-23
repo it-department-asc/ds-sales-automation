@@ -11,9 +11,10 @@ type ExcelCProps = {
   existingBranchCode?: string | null;
   clearTrigger?: number;
   onData?: (data: { headers: string[], rows: any[][] }) => void;
+  currentUser?: any;
 };
 
-const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clearTrigger, onData }) => {
+const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clearTrigger, onData, currentUser }) => {
   const { toast } = useToast();
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<any[][]>([]);
@@ -87,6 +88,24 @@ const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clear
 
       const branch = detectedBranch || null;
       console.log('ExcelC: detected branch:', branch, 'existingBranchCode:', existingBranchCode);
+      // Check if branch matches user's assigned branch
+      const userStoreInfo = currentUser?.storeId && currentUser?.branch ? `${currentUser.storeId} ${currentUser.branch}` : null;
+      if (userStoreInfo && branch && branch !== userStoreInfo) {
+        const msg = `You are not assigned to this branch. Your assigned branch is ${userStoreInfo}, but the file is for ${branch}.`;
+        setHeaders([]);
+        setRows([]);
+        setFileName(null);
+        setBranchCode(null);
+        setError(msg);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        if (onBranchCode) onBranchCode(null);
+        toast({
+          variant: "destructive",
+          title: "Branch assignment error",
+          description: msg,
+        });
+        return;
+      }
       // If existingBranchCode is set and does not match, block upload
       if (existingBranchCode && branch && branch !== existingBranchCode) {
         const msg = `Branch mismatch: File 3 (${branch}) does not match File 2 (${existingBranchCode})`;

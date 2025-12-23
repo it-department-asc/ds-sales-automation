@@ -7,10 +7,9 @@ import { useState, useEffect } from "react";
 import { ExcelBranchCompare } from "../../../components/ExcelBranchCompare";
 
 
-export function UserDashboard() {
+export function UserDashboard({ currentUser }: { currentUser: any }) {
   const { user: clerkUser, isLoaded: clerkLoaded } = useUser();
   const { getToken } = useAuth();
-  const currentUser = useQuery(api.users.getCurrentUser);
   const userCount = useQuery(api.users.getUserCount);
   const uploadedData = useQuery(api.uploadedData.getUploadedData);
   const latestAdminProductFile = useQuery(api.uploadedData.getLatestAdminProductFile);
@@ -251,6 +250,7 @@ export function UserDashboard() {
           onExcelBData={setExcelBData}
           onExcelCData={setExcelCData}
           onBranchCode={setBranchCode}
+          currentUser={currentUser}
         />
 
         {excelBData && excelCData && branchCode && (

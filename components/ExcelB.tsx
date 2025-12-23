@@ -8,9 +8,10 @@ type ExcelBProps = {
   existingBranchCode?: string | null;
   clearTrigger?: number;
   onData?: (data: { headers: string[], rows: any[][] }) => void;
+  currentUser?: any;
 };
 
-const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingBranchCode, clearTrigger, onData }) => {
+const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingBranchCode, clearTrigger, onData, currentUser }) => {
   const { toast } = useToast();
   const [excelBHeaders, setExcelBHeaders] = useState<string[]>([]);
   const [excelBRows, setExcelBRows] = useState<any[][]>([]);
@@ -73,6 +74,23 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
         toast({
           variant: "destructive",
           title: "Branch mismatch",
+          description: msg,
+        });
+        return;
+      }
+      // Check if branch matches user's assigned branch
+      const userStoreInfo = currentUser?.storeId && currentUser?.branch ? `${currentUser.storeId} ${currentUser.branch}` : null;
+      if (userStoreInfo && branch && branch !== userStoreInfo) {
+        const msg = `You are not assigned to this branch. Your assigned branch is ${userStoreInfo}, but the file is for ${branch}.`;
+        setExcelBHeaders([]);
+        setExcelBRows([]);
+        setBranchCode(null);
+        setError(msg);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        if (onBranchCode) onBranchCode(null);
+        toast({
+          variant: "destructive",
+          title: "Branch assignment error",
           description: msg,
         });
         return;

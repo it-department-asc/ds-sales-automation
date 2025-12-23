@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { AdminDashboard } from "../admin/components/AdminDashboard";
 import { UserDashboard } from "../user/components/UserDashboard";
+import { currentUser } from "@clerk/nextjs/server";
 
 export function SignedInContent() {
   const { user } = useUser();
@@ -12,17 +13,18 @@ export function SignedInContent() {
 
   return (
     <>
-      <UserWelcome user={user} />
+      <UserWelcome user={user} currentUser={currentUser} />
       <RoleBasedDashboard currentUser={currentUser} />
     </>
   );
 }
 
-function UserWelcome({ user }: { user: any }) {
+function UserWelcome({ user, currentUser }: { user: any, currentUser: any }) {
+  const storeInfo = currentUser?.storeId && currentUser?.branch ? `${currentUser.storeId} ${currentUser.branch}` : '';
   return (
     <>
       <h1 className="text-2xl md:text-4xl font-bold text-black mb-2 md:mb-4">
-        Welcome, {user?.firstName || user?.username || 'User'}
+        Welcome, {user?.firstName || user?.username || 'User'} {storeInfo && `-${storeInfo}`}
       </h1>
       <p className="text-sm md:text-lg text-gray-600 mb-4 md:mb-6">
         Secure authentication made simple with Clerk.
@@ -35,6 +37,6 @@ function RoleBasedDashboard({ currentUser }: { currentUser: any }) {
   if (currentUser?.role === 'admin') {
     return <AdminDashboard />;
   } else {
-    return <UserDashboard />;
+    return <UserDashboard currentUser={currentUser} />;
   }
 }
