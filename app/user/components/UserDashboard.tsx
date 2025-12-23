@@ -260,15 +260,15 @@ export function UserDashboard() {
               onClick={async () => {
                 if (!excelBData) return;
                 // Aggregate data from excelBData
-                const { headers, rows } = excelBData;
-                const saleStatusIdx = headers.findIndex(h => h.toLowerCase() === 'sale_status');
-                const qtyIdx = headers.findIndex(h => h.toLowerCase() === 'qty');
-                const amountIdx = headers.findIndex(h => h.toLowerCase() === 'total amount');
+                const { headers: bHeaders, rows: bRows } = excelBData;
+                const saleStatusIdx = bHeaders.findIndex(h => h.toLowerCase() === 'sale_status');
+                const qtyIdx = bHeaders.findIndex(h => h.toLowerCase() === 'qty');
+                const amountIdx = bHeaders.findIndex(h => h.toLowerCase() === 'total amount');
                 let regularQty = 0;
                 let regularAmt = 0;
                 let nonRegularQty = 0;
                 let nonRegularAmt = 0;
-                for (const row of rows) {
+                for (const row of bRows) {
                   const saleStatus = row[saleStatusIdx];
                   const qty = qtyIdx !== -1 ? parseFloat(row[qtyIdx]?.toString().replace(/,/g, '') || '0') : 1;
                   const amt = amountIdx !== -1 ? parseFloat(row[amountIdx]?.toString().replace(/,/g, '') || '0') : 0;
@@ -286,6 +286,37 @@ export function UserDashboard() {
                 regularAmt = Math.round(regularAmt * 100) / 100;
                 nonRegularAmt = Math.round(nonRegularAmt * 100) / 100;
                 totalAmt = Math.round(totalAmt * 100) / 100;
+
+                // Aggregate payments from excelCData
+                let cashCheck = 0;
+                let charge = 0;
+                let gc = 0;
+                const creditNote = 0;
+                if (excelCData) {
+                  const { headers: cHeaders, rows: cRows } = excelCData;
+                  const cashIdx = cHeaders.findIndex(h => h.toLowerCase() === 'cash');
+                  const creditCardIdx = cHeaders.findIndex(h => h.toLowerCase() === 'credit card');
+                  const debitCardIdx = cHeaders.findIndex(h => h.toLowerCase() === 'debit card');
+                  const gcashIdx = cHeaders.findIndex(h => h.toLowerCase() === 'gcash');
+                  const salmonCreditIdx = cHeaders.findIndex(h => h.toLowerCase() === 'salmon credit');
+                  const gcIdx = cHeaders.findIndex(h => h.toLowerCase() === 'gc');
+                  for (const row of cRows) {
+                    cashCheck += cashIdx !== -1 ? parseFloat(row[cashIdx]?.toString().replace(/,/g, '') || '0') : 0;
+                    const cc = creditCardIdx !== -1 ? parseFloat(row[creditCardIdx]?.toString().replace(/,/g, '') || '0') : 0;
+                    const dc = debitCardIdx !== -1 ? parseFloat(row[debitCardIdx]?.toString().replace(/,/g, '') || '0') : 0;
+                    const gcash = gcashIdx !== -1 ? parseFloat(row[gcashIdx]?.toString().replace(/,/g, '') || '0') : 0;
+                    const salmon = salmonCreditIdx !== -1 ? parseFloat(row[salmonCreditIdx]?.toString().replace(/,/g, '') || '0') : 0;
+                    charge += cc + dc + gcash + salmon;
+                    gc += gcIdx !== -1 ? parseFloat(row[gcIdx]?.toString().replace(/,/g, '') || '0') : 0;
+                  }
+                }
+                // Round payments
+                cashCheck = Math.round(cashCheck * 100) / 100;
+                charge = Math.round(charge * 100) / 100;
+                gc = Math.round(gc * 100) / 100;
+                const totalPayments = cashCheck + charge + gc + creditNote;
+                const amountsMatch = Math.abs(totalAmt - totalPayments) < 0.01; // floating point comparison
+
                 try {
                   await saveSalesSummary({
                     branchCode,
@@ -295,6 +326,12 @@ export function UserDashboard() {
                     nonRegularAmt,
                     totalQtySold,
                     totalAmt,
+                    cashCheck,
+                    charge,
+                    gc,
+                    creditNote,
+                    totalPayments,
+                    amountsMatch,
                   });
                   alert('Sales summary saved successfully!');
                   // Reset data

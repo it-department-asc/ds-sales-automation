@@ -38,6 +38,12 @@ export default defineSchema({
     nonRegularAmt: v.union(v.number(), v.string()),
     totalQtySold: v.number(),
     totalAmt: v.union(v.number(), v.string()),
+    cashCheck: v.optional(v.union(v.number(), v.string())),
+    charge: v.optional(v.union(v.number(), v.string())),
+    gc: v.optional(v.union(v.number(), v.string())),
+    creditNote: v.optional(v.union(v.number(), v.string())),
+    totalPayments: v.optional(v.union(v.number(), v.string())),
+    amountsMatch: v.optional(v.boolean()),
     createdAt: v.number(),
   })
     .index("by_user", ["userId"]),
