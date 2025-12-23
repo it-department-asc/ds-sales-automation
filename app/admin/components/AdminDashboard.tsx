@@ -9,10 +9,12 @@ import { TableFilters } from "./TableFilters";
 import { TextHighlight } from "./TextHighlight";
 import { EmptyState } from "./EmptyState";
 import { Id } from "../../../convex/_generated/dataModel";
-import { Users } from "lucide-react";
+import { Users, Download } from "lucide-react";
+import * as XLSX from 'xlsx';
 
 export function AdminDashboard() {
     const allUsers = useQuery(api.users.getAllUsers);
+    const allSalesSummaries = useQuery(api.userSalesSummaries.getAllSalesSummaries);
     const [editingUserId, setEditingUserId] = useState<Id<"users"> | null>(null);
 
     // Filter states
@@ -68,6 +70,73 @@ export function AdminDashboard() {
         setStatusFilter('');
     };
 
+    const handleGenerateReport = () => {
+        if (!allSalesSummaries || allSalesSummaries.length === 0) {
+            alert('No sales summary data available to generate report.');
+            return;
+        }
+
+        // Prepare data in the specified column order
+        const reportData = allSalesSummaries.map(summary => ({
+            'Store ID': summary.storeId || '',
+            'Branch': summary.branch || '',
+            'Region': summary.region || '',
+            'Province': summary.province || '',
+            'City': summary.city || '',
+            'Lessor': summary.lessor || '',
+            'Mall Name': summary.mallName || '',
+            'Cash/Check': summary.cashCheck || '',
+            'Charge': summary.charge || '',
+            'GC': summary.gc || '',
+            'Credit Note': summary.creditNote || '',
+            'Total Payments': summary.totalPayments || '',
+            'Regular Qty': summary.regularQty,
+            'Regular Amt': summary.regularAmt,
+            'Non-Regular Qty': summary.nonRegularQty,
+            'Non-Regular Amt': summary.nonRegularAmt,
+            'Total Qty Sold': summary.totalQtySold,
+            'Total Amt': summary.totalAmt,
+        }));
+
+        // Create workbook and worksheet
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(reportData);
+
+        // Auto-size columns
+        const colWidths = [
+            { wch: 12 }, // Store ID
+            { wch: 15 }, // Branch
+            { wch: 12 }, // Region
+            { wch: 15 }, // Province
+            { wch: 15 }, // City
+            { wch: 15 }, // Lessor
+            { wch: 20 }, // Mall Name
+            { wch: 12 }, // Cash/Check
+            { wch: 10 }, // Charge
+            { wch: 8 },  // GC
+            { wch: 12 }, // Credit Note
+            { wch: 15 }, // Total Payments
+            { wch: 12 }, // Regular Qty
+            { wch: 12 }, // Regular Amt
+            { wch: 15 }, // Non-Regular Qty
+            { wch: 15 }, // Non-Regular Amt
+            { wch: 15 }, // Total Qty Sold
+            { wch: 12 }, // Total Amt
+        ];
+        ws['!cols'] = colWidths;
+
+        // Add worksheet to workbook
+        XLSX.utils.book_append_sheet(wb, ws, 'Sales Report');
+
+        // Generate filename with current date
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD format
+        const filename = `sales_report_${dateStr}.xlsx`;
+
+        // Save file
+        XLSX.writeFile(wb, filename);
+    };
+
     return (
         <div className="mt-4 md:mt-8 w-full relative">
             <div className="mb-4">
@@ -83,23 +152,41 @@ export function AdminDashboard() {
                             </p>
                         </div>
                         {/* Mobile count badge */}
-                        <div className="sm:hidden">
+                        <div className="sm:hidden flex items-center space-x-2">
                             <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold">
                                 {filteredUsers?.length || 0}
                             </span>
+                            <button
+                                onClick={handleGenerateReport}
+                                className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={!allSalesSummaries || allSalesSummaries.length === 0}
+                            >
+                                <Download className="h-3 w-3 mr-1" />
+                                Report
+                            </button>
                         </div>
                     </div>
-                    {/* Desktop count */}
+                    {/* Desktop count */}  
                     <div className="hidden sm:block">
-                        <div className="flex items-center space-x-2 text-sm">
-                            <span className="text-gray-500">Total:</span>
-                            <span className="font-semibold text-gray-900">{filteredUsers?.length || 0}</span>
-                            <span className="text-gray-500">users</span>
-                            {filteredUsers?.length !== allUsers?.length && (
-                                <span className="text-gray-400 text-xs">
-                                    (filtered from {allUsers?.length || 0})
-                                </span>
-                            )}
+                        <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-2 text-sm">
+                                <span className="text-gray-500">Total:</span>
+                                <span className="font-semibold text-gray-900">{filteredUsers?.length || 0}</span>
+                                <span className="text-gray-500">users</span>
+                                {filteredUsers?.length !== allUsers?.length && (
+                                    <span className="text-gray-400 text-xs">
+                                        (filtered from {allUsers?.length || 0})
+                                    </span>
+                                )}
+                            </div>
+                            <button
+                                onClick={handleGenerateReport}
+                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={!allSalesSummaries || allSalesSummaries.length === 0}
+                            >
+                                <Download className="h-4 w-4 mr-2" />
+                                Generate Report
+                            </button>
                         </div>
                     </div>
                 </div>
