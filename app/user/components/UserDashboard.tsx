@@ -4,12 +4,15 @@ import { useUser, useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useState, useEffect } from "react";
+import { ExcelBranchCompare } from "../../../components/ExcelBranchCompare";
 
 export function UserDashboard() {
   const { user: clerkUser, isLoaded: clerkLoaded } = useUser();
   const { getToken } = useAuth();
   const currentUser = useQuery(api.users.getCurrentUser);
   const userCount = useQuery(api.users.getUserCount);
+  const uploadedData = useQuery(api.uploadedData.getUploadedData);
+  const latestAdminProductFile = useQuery(api.uploadedData.getLatestAdminProductFile);
 
   // Test JWT token
   const [jwtToken, setJwtToken] = useState<string | null>(null);
@@ -31,36 +34,218 @@ export function UserDashboard() {
     testToken();
   }, [clerkLoaded, clerkUser, getToken]);
 
-  return (
-    <div className="bg-gray-50 rounded-lg p-4 md:p-8 mt-12">
-      <h2 className="text-2xl font-semibold text-black mb-4">
-        Your Dashboard !!
-      </h2>
-      <p className="text-gray-600 mb-4">
-        Clerk Status: {clerkLoaded ? 'Loaded' : 'Loading...'}
-      </p>
-      <p className="text-gray-600 mb-4">
-        Clerk User ID: {clerkUser?.id || 'Not signed in'}
-      </p>
-      <p className="text-gray-600 mb-4">
-        JWT Token Status: {jwtToken || 'Checking...'}
-      </p>
-      <p className="text-gray-600 mb-4">
-        Role: {currentUser?.role || 'Loading...'}
-      </p>
-      <p className="text-gray-600 mb-4">
-        Debug - User ID: {currentUser?._id || 'Not found'}
-      </p>
-      <p className="text-gray-600 mb-4">
-        Debug - Email: {currentUser?.email || 'Not found'}
-      </p>
-      <p className="text-gray-600 mb-4">
-        Debug - Total Users in DB: {userCount ?? 'Loading...'}
-      </p>
+  // Only show ExcelB upload for user role, otherwise nothing
+  if (currentUser?.role === 'user') {
+    // Use the new query for admin product file
+    let adminUploaded = false;
+    let adminFileName = '';
+    let adminConvexDate = '';
+    let adminConvexDateObj = null;
+    let adminConvexUploader = '';
+    let adminConvexDataPreview = null;
+    if (latestAdminProductFile) {
+      adminUploaded = true;
+      adminFileName = latestAdminProductFile.fileName || 'Admin Product File';
+      if (latestAdminProductFile.createdAt) {
+        adminConvexDateObj = new Date(latestAdminProductFile.createdAt);
+        adminConvexDate = adminConvexDateObj.toLocaleString();
+      }
+      adminConvexUploader = latestAdminProductFile.uploaderName || '';
+      if (latestAdminProductFile.data && Array.isArray(latestAdminProductFile.data) && Array.isArray(latestAdminProductFile.data[0])) {
+        const [header, ...rows] = latestAdminProductFile.data;
+        adminConvexDataPreview = rows.map((row: any[]) => {
+          const obj: any = {};
+          header.forEach((key: string, idx: number) => {
+            obj[key] = row[idx];
+          });
+          return obj;
+        });
+      } else if (latestAdminProductFile.data && Array.isArray(latestAdminProductFile.data)) {
+        adminConvexDataPreview = latestAdminProductFile.data;
+      } else if (!latestAdminProductFile.data || latestAdminProductFile.data.length === 0) {
+        adminConvexDataPreview = 'No data in this file.';
+      }
+    }
 
-      <p className="text-gray-600">
-        Explore your dashboard and manage your account.
-      </p>
-    </div>
-  );
+    // Check for admin-uploaded file in localStorage
+    let localAdminUploaded = false;
+    let localAdminFileName = '';
+    let localAdminDate = '';
+    let localAdminDateObj = null;
+    if (typeof window !== 'undefined') {
+      const local = localStorage.getItem('uploadedData');
+      if (local) {
+        try {
+          const parsed = JSON.parse(local);
+          if (parsed && parsed.data && parsed.data.length > 0) {
+            localAdminUploaded = true;
+            localAdminFileName = parsed.fileName || 'Admin Product File (Local)';
+            if (parsed.date) {
+              localAdminDateObj = new Date(parsed.date);
+              localAdminDate = localAdminDateObj.toLocaleString();
+            }
+          }
+        } catch {}
+      }
+    }
+
+    return (
+      <div className="bg-white rounded-lg p-8 mt-12 max-w-7xl mx-auto">
+        <h2 className="text-2xl font-bold mb-4 text-center">Upload Your Item Sales Report</h2>
+        <div className="mb-6">
+          <div className="flex flex-col gap-2 items-center">
+            {adminUploaded ? (
+              <div className="flex flex-col items-center">
+                <span className="text-green-700 font-medium">
+                  Admin uploaded: <span className="font-semibold">{adminFileName}</span> (Convex)
+                  {adminConvexDate && (
+                    <span className="text-xs text-gray-600 ml-2">on {adminConvexDate}</span>
+                  )}
+                </span>
+                {adminConvexUploader && (
+                  <span className="text-xs text-gray-500">Uploader: {adminConvexUploader}</span>
+                )}
+                {adminConvexDataPreview && typeof adminConvexDataPreview === 'string' ? (
+                  <div className="mt-2 w-full text-xs text-red-500">{adminConvexDataPreview}</div>
+                ) : adminConvexDataPreview && Array.isArray(adminConvexDataPreview) && adminConvexDataPreview.length > 0 ? (
+                  <div className="mt-2 w-full">
+                    <span className="text-xs text-gray-700 font-semibold">Preview of uploaded file:</span>
+                    <div className="overflow-x-auto mt-1 border rounded bg-gray-50 max-h-[32rem]" style={{maxHeight:'32rem', minWidth:'100%'}}>
+                      <table className="min-w-[56rem] w-full text-sm text-left">
+                        <thead>
+                          <tr>
+                            {Object.keys(adminConvexDataPreview[0]).map((key) => (
+                              <th key={key} className="px-4 py-2 border-b font-bold bg-gray-100 text-base">{key}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {adminConvexDataPreview.map((row, idx) => (
+                            <tr key={idx}>
+                              {Object.values(row).map((val, i) => (
+                                <td key={i} className="px-4 py-2 border-b text-base">{String(val)}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : adminConvexDataPreview ? (
+                  <div className="mt-2 w-full">
+                    <span className="text-xs text-gray-700">Preview:</span>
+                    <pre className="bg-gray-100 rounded p-2 text-xs overflow-x-auto max-w-xs">
+                      {JSON.stringify(adminConvexDataPreview, null, 2)}
+                    </pre>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <span className="text-red-600">No admin product file found in Convex</span>
+            )}
+            {localAdminUploaded && (
+              <div className="flex flex-col items-center w-full">
+                <span className="text-green-700 font-medium">
+                  Admin uploaded: <span className="font-semibold">{localAdminFileName}</span> (LocalStorage)
+                  {localAdminDate && (
+                    <span className="text-xs text-gray-600 ml-2">on {localAdminDate}</span>
+                  )}
+                </span>
+                {/* LocalStorage preview table */}
+                {(() => {
+                  if (typeof window !== 'undefined') {
+                    const local = localStorage.getItem('uploadedData');
+                    if (local) {
+                      try {
+                        const parsed = JSON.parse(local);
+                        if (parsed && parsed.data && Array.isArray(parsed.data) && Array.isArray(parsed.data[0])) {
+                          const [header, ...rows]: [string[], ...any[][]] = parsed.data;
+                          const previewRows = rows.map((row: any[]) => {
+                            const obj: { [key: string]: any } = {};
+                            (header as string[]).forEach((key: string, idx: number) => {
+                              obj[key] = row[idx];
+                            });
+                            return obj;
+                          });
+                          if (previewRows.length > 0) {
+                            return (
+                              <div className="mt-2 w-full">
+                                <span className="text-xs text-gray-700 font-semibold">Preview of uploaded file (LocalStorage):</span>
+                                <div className="overflow-x-auto mt-1 border rounded bg-gray-50 max-h-[32rem]" style={{maxHeight:'32rem', minWidth:'100%'}}>
+                                  <table className="min-w-[80rem] max-w-[180rem] w-full text-sm text-left">
+                                    <thead>
+                                      <tr>
+                                        {Object.keys(previewRows[0]).map((key: string) => (
+                                          <th key={key} className="px-4 py-2 border-b font-bold bg-gray-100 text-base">{key}</th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {previewRows.map((row: { [key: string]: any }, idx: number) => (
+                                        <tr key={idx}>
+                                          {Object.values(row).map((val: any, i: number) => (
+                                            <td key={i} className="px-4 py-2 border-b text-base">{String(val)}</td>
+                                          ))}
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            );
+                          }
+                        }
+                      } catch {}
+                    }
+                  }
+                  return null;
+                })()}
+              </div>
+            )}
+            {!(adminUploaded || localAdminUploaded) && (
+              <span className="text-gray-500">No admin product file found</span>
+            )}
+          </div>
+        </div>
+        <ExcelBranchCompare
+          excelAProducts={(() => {
+            if (adminUploaded && latestAdminProductFile && latestAdminProductFile.data) {
+              if (Array.isArray(latestAdminProductFile.data) && Array.isArray(latestAdminProductFile.data[0])) {
+                const [header, ...rows] = latestAdminProductFile.data;
+                return rows.map((row: any[]) => {
+                  const obj: any = {};
+                  header.forEach((key: string, idx: number) => {
+                    obj[key] = row[idx];
+                  });
+                  return obj;
+                });
+              }
+              return latestAdminProductFile.data;
+            }
+            // fallback: try localStorage
+            if (localAdminUploaded && typeof window !== 'undefined') {
+              const local = localStorage.getItem('uploadedData');
+              if (local) {
+                try {
+                  const parsed = JSON.parse(local);
+                  if (parsed && parsed.data && Array.isArray(parsed.data) && Array.isArray(parsed.data[0])) {
+                    const [header, ...rows] = parsed.data;
+                    return rows.map((row: any[]) => {
+                      const obj: any = {};
+                      header.forEach((key: string, idx: number) => {
+                        obj[key] = row[idx];
+                      });
+                      return obj;
+                    });
+                  }
+                } catch {}
+              }
+            }
+            return [];
+          })()}
+        />
+      </div>
+    );
+  }
+  return null;
 }
