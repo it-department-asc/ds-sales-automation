@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProviderWrapper } from "./components/ClerkProviderWrapper";
 import { Header } from "./components/Header";
 import { UserSync } from "./components/UserSync";
+import { Toaster } from "@/components/ui/toast";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -34,6 +35,7 @@ export default function RootLayout({
           <UserSync />
           <Header />
           {children}
+          <Toaster />
         </body>
       </html>
     </ClerkProviderWrapper>

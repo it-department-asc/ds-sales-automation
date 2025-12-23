@@ -1,3 +1,25 @@
+// Returns the latest uploadedData file uploaded by an admin (for all users)
+export const getLatestAdminProductFile = query({
+  args: {},
+  handler: async (ctx) => {
+    // Find all users with role admin
+    const admins = await ctx.db.query("users").collect();
+    const adminIds = admins.filter(u => u.role === "admin").map(u => u._id);
+    if (adminIds.length === 0) return null;
+    // Find all uploadedData by admins, sort by createdAt desc
+    const adminFiles = await ctx.db.query("uploadedData").collect();
+    const adminProductFiles = adminFiles.filter(f => adminIds.includes(f.userId));
+    if (adminProductFiles.length === 0) return null;
+    adminProductFiles.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const latest = adminProductFiles[0];
+    // Attach uploader info
+    const uploader = await ctx.db.get(latest.userId);
+    return {
+      ...latest,
+      uploaderName: uploader ? `${uploader.firstName || ''} ${uploader.lastName || ''}`.trim() || uploader.email : 'Unknown',
+    };
+  },
+});
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
