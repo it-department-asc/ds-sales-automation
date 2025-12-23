@@ -9,6 +9,7 @@
  */
 
 import type * as uploadedData from "../uploadedData.js";
+import type * as userSalesSummaries from "../userSalesSummaries.js";
 import type * as users from "../users.js";
 
 import type {
@@ -19,6 +20,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   uploadedData: typeof uploadedData;
+  userSalesSummaries: typeof userSalesSummaries;
   users: typeof users;
 }>;
 

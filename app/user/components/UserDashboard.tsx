@@ -1,10 +1,11 @@
 'use client';
 
 import { useUser, useAuth } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { ExcelBranchCompare } from "../../../components/ExcelBranchCompare";
+
 
 export function UserDashboard() {
   const { user: clerkUser, isLoaded: clerkLoaded } = useUser();
@@ -13,9 +14,13 @@ export function UserDashboard() {
   const userCount = useQuery(api.users.getUserCount);
   const uploadedData = useQuery(api.uploadedData.getUploadedData);
   const latestAdminProductFile = useQuery(api.uploadedData.getLatestAdminProductFile);
+  const saveSalesSummary = useMutation(api.userSalesSummaries.saveUserSalesSummary);
 
   // Test JWT token
   const [jwtToken, setJwtToken] = useState<string | null>(null);
+  const [excelBData, setExcelBData] = useState<{ headers: string[], rows: any[][] } | null>(null);
+  const [excelCData, setExcelCData] = useState<{ headers: string[], rows: any[][] } | null>(null);
+  const [branchCode, setBranchCode] = useState<string | null>(null);
 
   useEffect(() => {
     const testToken = async () => {
@@ -243,7 +248,69 @@ export function UserDashboard() {
             }
             return [];
           })()}
+          onExcelBData={setExcelBData}
+          onExcelCData={setExcelCData}
+          onBranchCode={setBranchCode}
         />
+
+        {excelBData && excelCData && branchCode && (
+          <div className="mt-8 text-center">
+            <button
+              className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded shadow"
+              onClick={async () => {
+                if (!excelBData) return;
+                // Aggregate data from excelBData
+                const { headers, rows } = excelBData;
+                const saleStatusIdx = headers.findIndex(h => h.toLowerCase() === 'sale_status');
+                const qtyIdx = headers.findIndex(h => h.toLowerCase() === 'qty');
+                const amountIdx = headers.findIndex(h => h.toLowerCase() === 'total amount');
+                let regularQty = 0;
+                let regularAmt = 0;
+                let nonRegularQty = 0;
+                let nonRegularAmt = 0;
+                for (const row of rows) {
+                  const saleStatus = row[saleStatusIdx];
+                  const qty = qtyIdx !== -1 ? parseFloat(row[qtyIdx]?.toString().replace(/,/g, '') || '0') : 1;
+                  const amt = amountIdx !== -1 ? parseFloat(row[amountIdx]?.toString().replace(/,/g, '') || '0') : 0;
+                  if (saleStatus === 'R') {
+                    regularQty += qty;
+                    regularAmt += amt;
+                  } else if (saleStatus === 'NR') {
+                    nonRegularQty += qty;
+                    nonRegularAmt += amt;
+                  }
+                }
+                const totalQtySold = regularQty + nonRegularQty;
+                let totalAmt = regularAmt + nonRegularAmt;
+                // Round to 2 decimal places
+                regularAmt = Math.round(regularAmt * 100) / 100;
+                nonRegularAmt = Math.round(nonRegularAmt * 100) / 100;
+                totalAmt = Math.round(totalAmt * 100) / 100;
+                try {
+                  await saveSalesSummary({
+                    branchCode,
+                    regularQty,
+                    regularAmt,
+                    nonRegularQty,
+                    nonRegularAmt,
+                    totalQtySold,
+                    totalAmt,
+                  });
+                  alert('Sales summary saved successfully!');
+                  // Reset data
+                  setExcelBData(null);
+                  setExcelCData(null);
+                  setBranchCode(null);
+                } catch (error) {
+                  console.error('Error saving sales summary:', error);
+                  alert('Failed to save sales summary.');
+                }
+              }}
+            >
+              Save Sales Summary
+            </button>
+          </div>
+        )}
       </div>
     );
   }

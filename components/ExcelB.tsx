@@ -7,9 +7,10 @@ type ExcelBProps = {
   onBranchCode?: (branch: string | null) => void;
   existingBranchCode?: string | null;
   clearTrigger?: number;
+  onData?: (data: { headers: string[], rows: any[][] }) => void;
 };
 
-const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingBranchCode, clearTrigger }) => {
+const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingBranchCode, clearTrigger, onData }) => {
   const { toast } = useToast();
   const [excelBHeaders, setExcelBHeaders] = useState<string[]>([]);
   const [excelBRows, setExcelBRows] = useState<any[][]>([]);
@@ -129,6 +130,7 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
       setExcelBHeaders(mergedHeaders);
       setExcelBRows(mergedRows);
       setError(null);
+      if (onData) onData({ headers: mergedHeaders, rows: mergedRows });
     } catch (err) {
       setError('Failed to parse file.');
       setBranchCode(null);

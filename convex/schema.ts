@@ -29,4 +29,16 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_user", ["userId"]),
+  userSalesSummaries: defineTable({
+    userId: v.id("users"),
+    branchCode: v.string(),
+    regularQty: v.number(),
+    regularAmt: v.union(v.number(), v.string()),
+    nonRegularQty: v.number(),
+    nonRegularAmt: v.union(v.number(), v.string()),
+    totalQtySold: v.number(),
+    totalAmt: v.union(v.number(), v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"]),
 });
