@@ -6,17 +6,41 @@ export const getLatestAdminProductFile = query({
     const admins = await ctx.db.query("users").collect();
     const adminIds = admins.filter(u => u.role === "admin").map(u => u._id);
     if (adminIds.length === 0) return null;
-    // Find all uploadedData by admins, sort by createdAt desc
+    // Find all uploadedData by admins
     const adminFiles = await ctx.db.query("uploadedData").collect();
     const adminProductFiles = adminFiles.filter(f => adminIds.includes(f.userId));
     if (adminProductFiles.length === 0) return null;
-    adminProductFiles.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    const latest = adminProductFiles[0];
+    // Group by fileId and find the latest
+    const fileMap = new Map<string, any[]>();
+    adminProductFiles.forEach((item) => {
+      if (!fileMap.has(item.fileId)) {
+        fileMap.set(item.fileId, []);
+      }
+      fileMap.get(item.fileId)!.push(item);
+    });
+    let latestFileId = null;
+    let latestCreatedAt = 0;
+    for (const [fileId, partitions] of fileMap) {
+      const createdAt = partitions[0].createdAt;
+      if (createdAt > latestCreatedAt) {
+        latestCreatedAt = createdAt;
+        latestFileId = fileId;
+      }
+    }
+    if (!latestFileId) return null;
+    const partitions = fileMap.get(latestFileId)!;
+    partitions.sort((a, b) => a.partition - b.partition);
+    const combinedData = partitions.flatMap(p => p.data);
     // Attach uploader info
-    const uploader = await ctx.db.get(latest.userId);
+    const uploader = await ctx.db.get(partitions[0].userId);
     return {
-      ...latest,
-      uploaderName: uploader ? `${uploader.firstName || ''} ${uploader.lastName || ''}`.trim() || uploader.email : 'Unknown',
+      _id: partitions[0]._id,
+      userId: partitions[0].userId,
+      fileId: latestFileId,
+      fileName: partitions[0].fileName,
+      // data: combinedData, // Remove data from response
+      createdAt: partitions[0].createdAt,
+      uploaderName: uploader ? `${(uploader as any).firstName || ''} ${(uploader as any).lastName || ''}`.trim() || (uploader as any).email : 'Unknown',
     };
   },
 });
@@ -25,7 +49,9 @@ import { v } from "convex/values";
 
 export const saveUploadedData = mutation({
   args: {
+    fileId: v.string(),
     fileName: v.string(),
+    partition: v.number(),
     data: v.any(),
   },
   handler: async (ctx, args) => {
@@ -42,7 +68,9 @@ export const saveUploadedData = mutation({
     }
     await ctx.db.insert("uploadedData", {
       userId: user._id,
+      fileId: args.fileId,
       fileName: args.fileName,
+      partition: args.partition,
       data: args.data,
       createdAt: Date.now(),
     });
@@ -72,13 +100,35 @@ export const getUploadedData = query({
         .withIndex("by_user", (q) => q.eq("userId", user._id))
         .collect();
     }
+    // Group by fileId
+    const fileMap = new Map<string, any[]>();
+    data.forEach((item) => {
+      if (!fileMap.has(item.fileId)) {
+        fileMap.set(item.fileId, []);
+      }
+      fileMap.get(item.fileId)!.push(item);
+    });
+    // For each file, combine partitions
+    const combinedData = [];
+    for (const [fileId, partitions] of fileMap) {
+      partitions.sort((a, b) => a.partition - b.partition);
+      const combined = {
+        _id: partitions[0]._id, // Use first partition's id for compatibility
+        userId: partitions[0].userId,
+        fileId,
+        fileName: partitions[0].fileName,
+        // data: partitions.flatMap(p => p.data), // Remove data from list
+        createdAt: partitions[0].createdAt,
+      };
+      combinedData.push(combined);
+    }
     // Add user info to each item
     const dataWithUser = await Promise.all(
-      data.map(async (item) => {
+      combinedData.map(async (item) => {
         const uploader = await ctx.db.get(item.userId);
         return {
           ...item,
-          uploaderName: uploader ? `${uploader.firstName || ''} ${uploader.lastName || ''}`.trim() || uploader.email : 'Unknown',
+          uploaderName: uploader ? `${(uploader as any).firstName || ''} ${(uploader as any).lastName || ''}`.trim() || (uploader as any).email : 'Unknown',
         };
       })
     );
@@ -86,9 +136,31 @@ export const getUploadedData = query({
   },
 });
 
+export const getUploadedDataContent = query({
+  args: { fileId: v.string(), offset: v.optional(v.number()), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const partitions = await ctx.db
+      .query("uploadedData")
+      .withIndex("by_file_id", (q) => q.eq("fileId", args.fileId))
+      .collect();
+    if (partitions.length === 0) return null;
+    partitions.sort((a, b) => a.partition - b.partition);
+    const fullData = partitions.flatMap(p => p.data);
+    const offset = args.offset || 0;
+    const limit = args.limit || 8000;
+    const slicedData = fullData.slice(offset, offset + limit);
+    return {
+      data: slicedData,
+      totalRows: fullData.length,
+      hasMore: offset + limit < fullData.length,
+      nextOffset: offset + limit,
+    };
+  },
+});
+
 export const deleteUploadedData = mutation({
   args: {
-    id: v.id("uploadedData"),
+    fileId: v.string(),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -102,14 +174,20 @@ export const deleteUploadedData = mutation({
     if (!user) {
       throw new Error("User not found");
     }
-    const data = await ctx.db.get(args.id);
-    if (!data) {
+    // Find all partitions for this fileId
+    const partitions = await ctx.db
+      .query("uploadedData")
+      .withIndex("by_file_id", (q) => q.eq("fileId", args.fileId))
+      .collect();
+    if (partitions.length === 0) {
       throw new Error("Data not found");
     }
-    // Allow if owner or admin
-    if (data.userId !== user._id && user.role !== "admin") {
+    // Check if user is owner or admin
+    const firstPartition = partitions[0];
+    if (firstPartition.userId !== user._id && user.role !== "admin") {
       throw new Error("Not authorized");
     }
-    await ctx.db.delete(args.id);
+    // Delete all partitions
+    await Promise.all(partitions.map(p => ctx.db.delete(p._id)));
   },
 });

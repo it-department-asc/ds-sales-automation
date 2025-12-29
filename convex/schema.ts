@@ -24,11 +24,15 @@ export default defineSchema({
     .index("by_role", ["role"]),
   uploadedData: defineTable({
     userId: v.id("users"),
+    fileId: v.string(), // Unique ID for the file, shared across partitions
     fileName: v.string(),
-    data: v.any(), // Parsed data as array of objects
+    partition: v.number(), // Partition index, starting from 0
+    data: v.any(), // Parsed data as array of objects, chunked
     createdAt: v.number(),
   })
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_file_id", ["fileId"])
+    .index("by_user_file", ["userId", "fileName"]),
   userSalesSummaries: defineTable({
     userId: v.id("users"),
     branchCode: v.string(),
