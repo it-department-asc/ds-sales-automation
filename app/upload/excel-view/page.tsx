@@ -43,10 +43,10 @@ export default function ExcelViewPage() {
     }
   }, []);
 
-  const handleDelete = async (id: Id<"uploadedData">) => {
+  const handleDelete = async (fileId: string) => {
     if (confirm("Are you sure you want to delete this uploaded file?")) {
       try {
-        await deleteData({ id });
+        await deleteData({ fileId });
       } catch (error) {
         alert("Error deleting: " + error);
       }
@@ -94,7 +94,7 @@ export default function ExcelViewPage() {
                     <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">Stored in Convex</span>
                   </div>
                   <Button
-                    onClick={() => handleDelete(item._id)}
+                    onClick={() => handleDelete(item.fileId)}
                     variant="destructive"
                     size="sm"
                   >

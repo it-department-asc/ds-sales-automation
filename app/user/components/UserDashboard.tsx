@@ -17,6 +17,41 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
   const latestAdminProductFile = useQuery(api.uploadedData.getLatestAdminProductFile);
   const saveSalesSummary = useMutation(api.userSalesSummaries.saveUserSalesSummary);
 
+  // Load admin data in chunks
+  const [adminDataChunks, setAdminDataChunks] = useState<any[]>([]);
+  const [currentOffset, setCurrentOffset] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadedRows, setLoadedRows] = useState(0);
+  const [totalRows, setTotalRows] = useState(0);
+  const [loadedOffsets, setLoadedOffsets] = useState<Set<number>>(new Set());
+  const chunkQuery = useQuery(api.uploadedData.getUploadedDataContent, {
+    fileId: latestAdminProductFile?.fileId || "",
+    offset: currentOffset,
+    limit: 8000
+  });
+
+  useEffect(() => {
+    if (chunkQuery && chunkQuery.data && chunkQuery.data.length > 0) {
+      setAdminDataChunks(prev => {
+        if (!loadedOffsets.has(currentOffset)) {
+          setLoadedOffsets(prevOffsets => new Set([...prevOffsets, currentOffset]));
+          return [...prev, ...chunkQuery.data];
+        }
+        return prev;
+      });
+      setTotalRows(chunkQuery.totalRows);
+      setLoadedRows(prev => prev + chunkQuery.data.length);
+      if (chunkQuery.hasMore) {
+        setCurrentOffset(chunkQuery.nextOffset);
+        setLoadingMore(true);
+      } else {
+        setLoadingMore(false);
+      }
+    }
+  }, [chunkQuery, currentOffset, loadedOffsets]);
+
+  const adminData = adminDataChunks.length > 0 ? adminDataChunks : null;
+
   // Test JWT token
   const [jwtToken, setJwtToken] = useState<string | null>(null);
   const [excelBData, setExcelBData] = useState<{ headers: string[], rows: any[][] } | null>(null);
@@ -108,6 +143,7 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
     let adminConvexDate = '';
     let adminConvexDateObj = null;
     let adminConvexUploader = '';
+    let adminLoadingText = '';
     let adminConvexDataPreview = null;
     if (latestAdminProductFile) {
       adminUploaded = true;
@@ -117,8 +153,12 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
         adminConvexDate = adminConvexDateObj.toLocaleString();
       }
       adminConvexUploader = latestAdminProductFile.uploaderName || '';
-      if (latestAdminProductFile.data && Array.isArray(latestAdminProductFile.data) && Array.isArray(latestAdminProductFile.data[0])) {
-        const [header, ...rows] = latestAdminProductFile.data;
+      if (loadingMore) {
+        adminLoadingText = `Loading data: ${loadedRows} / ${totalRows} rows`;
+      }
+      if (adminData && Array.isArray(adminData) && adminData.length > 0) {
+        const header = ["name", "stock_no", "barcode", "status", "retail_price", "landed_cost", "sale_status"];
+        const rows = adminData;
         adminConvexDataPreview = rows.map((row: any[]) => {
           const obj: any = {};
           header.forEach((key: string, idx: number) => {
@@ -126,9 +166,9 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
           });
           return obj;
         });
-      } else if (latestAdminProductFile.data && Array.isArray(latestAdminProductFile.data)) {
-        adminConvexDataPreview = latestAdminProductFile.data;
-      } else if (!latestAdminProductFile.data || latestAdminProductFile.data.length === 0) {
+      } else if (adminData && Array.isArray(adminData)) {
+        adminConvexDataPreview = adminData;
+      } else if (!adminData || (adminData as any[]).length === 0) {
         adminConvexDataPreview = 'No data in this file.';
       }
     }
@@ -171,7 +211,11 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
                 {adminConvexUploader && (
                   <span className="text-xs text-gray-500">Uploader: {adminConvexUploader}</span>
                 )}
-                {adminConvexDataPreview && typeof adminConvexDataPreview === 'string' ? (
+                {adminLoadingText && (
+                  <span className="text-xs text-blue-500 ml-2">{adminLoadingText}</span>
+                )}
+                {/* Convex preview table */}
+                {/* {adminConvexDataPreview && typeof adminConvexDataPreview === 'string' ? (
                   <div className="mt-2 w-full text-xs text-red-500">{adminConvexDataPreview}</div>
                 ) : adminConvexDataPreview && Array.isArray(adminConvexDataPreview) && adminConvexDataPreview.length > 0 ? (
                   <div className="mt-2 w-full">
@@ -204,7 +248,7 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
                       {JSON.stringify(adminConvexDataPreview, null, 2)}
                     </pre>
                   </div>
-                ) : null}
+                ) : null} */}
               </div>
             ) : (
               <span className="text-red-600">No admin product file found in Convex</span>
@@ -275,18 +319,16 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
         </div>
         <ExcelBranchCompare
           excelAProducts={(() => {
-            if (adminUploaded && latestAdminProductFile && latestAdminProductFile.data) {
-              if (Array.isArray(latestAdminProductFile.data) && Array.isArray(latestAdminProductFile.data[0])) {
-                const [header, ...rows] = latestAdminProductFile.data;
-                return rows.map((row: any[]) => {
-                  const obj: any = {};
-                  header.forEach((key: string, idx: number) => {
-                    obj[key] = row[idx];
-                  });
-                  return obj;
+            if (adminUploaded && latestAdminProductFile && adminData) {
+              const header = ["name", "stock_no", "barcode", "status", "retail_price", "landed_cost", "sale_status"];
+              const rows = adminData;
+              return rows.map((row: any[]) => {
+                const obj: any = {};
+                header.forEach((key: string, idx: number) => {
+                  obj[key] = row[idx];
                 });
-              }
-              return latestAdminProductFile.data;
+                return obj;
+              });
             }
             // fallback: try localStorage
             if (localAdminUploaded && typeof window !== 'undefined') {
@@ -359,120 +401,119 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
 
             <div className="text-center">
               <button
-                className={`inline-flex items-center px-10 py-4 rounded-xl font-semibold text-lg transition-all duration-300 transform ${
-                  excelBData && excelCData && branchCode && transactionCount !== undefined && headCount !== undefined && !hasValidationErrors
+                className={`inline-flex items-center px-10 py-4 rounded-xl font-semibold text-lg transition-all duration-300 transform ${excelBData && excelCData && branchCode && transactionCount !== undefined && headCount !== undefined && !hasValidationErrors
                     ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl hover:scale-105 active:scale-95'
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-sm'
-                }`}
+                  }`}
                 disabled={!(excelBData && excelCData && branchCode && transactionCount !== undefined && headCount !== undefined && !hasValidationErrors)}
                 onClick={async () => {
-                    if (!excelBData) return;
-                    // Aggregate data from excelBData
-                    const { headers: bHeaders, rows: bRows } = excelBData;
-                    const saleStatusIdx = bHeaders.findIndex(h => h.toLowerCase() === 'sale_status');
-                    const qtyIdx = bHeaders.findIndex(h => h.toLowerCase() === 'qty');
-                    const amountIdx = bHeaders.findIndex(h => h.toLowerCase() === 'total amount');
-                    let regularQty = 0;
-                    let regularAmt = 0;
-                    let nonRegularQty = 0;
-                    let nonRegularAmt = 0;
-                    for (const row of bRows) {
-                      const saleStatus = row[saleStatusIdx];
-                      const qty = qtyIdx !== -1 ? parseFloat(row[qtyIdx]?.toString().replace(/,/g, '') || '0') : 1;
-                      const amt = amountIdx !== -1 ? parseFloat(row[amountIdx]?.toString().replace(/,/g, '') || '0') : 0;
-                      if (saleStatus === 'R') {
-                        regularQty += qty;
-                        regularAmt += amt;
-                      } else if (saleStatus === 'NR') {
-                        nonRegularQty += qty;
-                        nonRegularAmt += amt;
-                      }
+                  if (!excelBData) return;
+                  // Aggregate data from excelBData
+                  const { headers: bHeaders, rows: bRows } = excelBData;
+                  const saleStatusIdx = bHeaders.findIndex(h => h.toLowerCase() === 'sale_status');
+                  const qtyIdx = bHeaders.findIndex(h => h.toLowerCase() === 'qty');
+                  const amountIdx = bHeaders.findIndex(h => h.toLowerCase() === 'total amount');
+                  let regularQty = 0;
+                  let regularAmt = 0;
+                  let nonRegularQty = 0;
+                  let nonRegularAmt = 0;
+                  for (const row of bRows) {
+                    const saleStatus = row[saleStatusIdx];
+                    const qty = qtyIdx !== -1 ? parseFloat(row[qtyIdx]?.toString().replace(/,/g, '') || '0') : 1;
+                    const amt = amountIdx !== -1 ? parseFloat(row[amountIdx]?.toString().replace(/,/g, '') || '0') : 0;
+                    if (saleStatus === 'R') {
+                      regularQty += qty;
+                      regularAmt += amt;
+                    } else if (saleStatus === 'NR') {
+                      nonRegularQty += qty;
+                      nonRegularAmt += amt;
                     }
-                    const totalQtySold = regularQty + nonRegularQty;
-                    let totalAmt = regularAmt + nonRegularAmt;
-                    // Round to 2 decimal places
-                    regularAmt = Math.round(regularAmt * 100) / 100;
-                    nonRegularAmt = Math.round(nonRegularAmt * 100) / 100;
-                    totalAmt = Math.round(totalAmt * 100) / 100;
+                  }
+                  const totalQtySold = regularQty + nonRegularQty;
+                  let totalAmt = regularAmt + nonRegularAmt;
+                  // Round to 2 decimal places
+                  regularAmt = Math.round(regularAmt * 100) / 100;
+                  nonRegularAmt = Math.round(nonRegularAmt * 100) / 100;
+                  totalAmt = Math.round(totalAmt * 100) / 100;
 
-                    // Aggregate payments from excelCData
-                    let cashCheck = 0;
-                    let charge = 0;
-                    let gc = 0;
-                    const creditNote = 0;
-                    if (excelCData) {
-                      const { headers: cHeaders, rows: cRows } = excelCData;
-                      const cashIdx = cHeaders.findIndex(h => h.toLowerCase() === 'cash');
-                      const creditCardIdx = cHeaders.findIndex(h => h.toLowerCase() === 'credit card');
-                      const debitCardIdx = cHeaders.findIndex(h => h.toLowerCase() === 'debit card');
-                      const gcashIdx = cHeaders.findIndex(h => h.toLowerCase() === 'gcash');
-                      const salmonCreditIdx = cHeaders.findIndex(h => h.toLowerCase() === 'salmon credit');
-                      const gcIdx = cHeaders.findIndex(h => h.toLowerCase() === 'gc');
-                      for (const row of cRows) {
-                        cashCheck += cashIdx !== -1 ? parseFloat(row[cashIdx]?.toString().replace(/,/g, '') || '0') : 0;
-                        const cc = creditCardIdx !== -1 ? parseFloat(row[creditCardIdx]?.toString().replace(/,/g, '') || '0') : 0;
-                        const dc = debitCardIdx !== -1 ? parseFloat(row[debitCardIdx]?.toString().replace(/,/g, '') || '0') : 0;
-                        const gcash = gcashIdx !== -1 ? parseFloat(row[gcashIdx]?.toString().replace(/,/g, '') || '0') : 0;
-                        const salmon = salmonCreditIdx !== -1 ? parseFloat(row[salmonCreditIdx]?.toString().replace(/,/g, '') || '0') : 0;
-                        charge += cc + dc + gcash + salmon;
-                        gc += gcIdx !== -1 ? parseFloat(row[gcIdx]?.toString().replace(/,/g, '') || '0') : 0;
-                      }
+                  // Aggregate payments from excelCData
+                  let cashCheck = 0;
+                  let charge = 0;
+                  let gc = 0;
+                  const creditNote = 0;
+                  if (excelCData) {
+                    const { headers: cHeaders, rows: cRows } = excelCData;
+                    const cashIdx = cHeaders.findIndex(h => h.toLowerCase() === 'cash');
+                    const creditCardIdx = cHeaders.findIndex(h => h.toLowerCase() === 'credit card');
+                    const debitCardIdx = cHeaders.findIndex(h => h.toLowerCase() === 'debit card');
+                    const gcashIdx = cHeaders.findIndex(h => h.toLowerCase() === 'gcash');
+                    const salmonCreditIdx = cHeaders.findIndex(h => h.toLowerCase() === 'salmon credit');
+                    const gcIdx = cHeaders.findIndex(h => h.toLowerCase() === 'gc');
+                    for (const row of cRows) {
+                      cashCheck += cashIdx !== -1 ? parseFloat(row[cashIdx]?.toString().replace(/,/g, '') || '0') : 0;
+                      const cc = creditCardIdx !== -1 ? parseFloat(row[creditCardIdx]?.toString().replace(/,/g, '') || '0') : 0;
+                      const dc = debitCardIdx !== -1 ? parseFloat(row[debitCardIdx]?.toString().replace(/,/g, '') || '0') : 0;
+                      const gcash = gcashIdx !== -1 ? parseFloat(row[gcashIdx]?.toString().replace(/,/g, '') || '0') : 0;
+                      const salmon = salmonCreditIdx !== -1 ? parseFloat(row[salmonCreditIdx]?.toString().replace(/,/g, '') || '0') : 0;
+                      charge += cc + dc + gcash + salmon;
+                      gc += gcIdx !== -1 ? parseFloat(row[gcIdx]?.toString().replace(/,/g, '') || '0') : 0;
                     }
-                    // Round payments
-                    cashCheck = Math.round(cashCheck * 100) / 100;
-                    charge = Math.round(charge * 100) / 100;
-                    gc = Math.round(gc * 100) / 100;
-                    const totalPayments = cashCheck + charge + gc + creditNote;
-                    const amountsMatch = Math.abs(totalAmt - totalPayments) < 0.01; // floating point comparison
+                  }
+                  // Round payments
+                  cashCheck = Math.round(cashCheck * 100) / 100;
+                  charge = Math.round(charge * 100) / 100;
+                  gc = Math.round(gc * 100) / 100;
+                  const totalPayments = cashCheck + charge + gc + creditNote;
+                  const amountsMatch = Math.abs(totalAmt - totalPayments) < 0.01; // floating point comparison
 
-                    try {
-                      await saveSalesSummary({
-                        branchCode,
-                        regularQty,
-                        regularAmt,
-                        nonRegularQty,
-                        nonRegularAmt,
-                        totalQtySold,
-                        totalAmt,
-                        cashCheck,
-                        charge,
-                        gc,
-                        creditNote,
-                        totalPayments,
-                        amountsMatch,
-                        storeId: currentUser?.storeId,
-                        branch: currentUser?.branch,
-                        region: currentUser?.region,
-                        province: currentUser?.province,
-                        city: currentUser?.city,
-                        lessor: currentUser?.lessor,
-                        mallName: currentUser?.mallName,
-                        transactionCount,
-                        headCount,
-                      });
-                      // Reset data
-                      setExcelBData(null);
-                      setExcelCData(null);
-                      setBranchCode(null);
-                      setTransactionCount(undefined);
-                      setHeadCount(undefined);
-                      setHasValidationErrors(false);
-                      setClearTrigger(prev => prev + 1);
+                  try {
+                    await saveSalesSummary({
+                      branchCode: branchCode!,
+                      regularQty,
+                      regularAmt,
+                      nonRegularQty,
+                      nonRegularAmt,
+                      totalQtySold,
+                      totalAmt,
+                      cashCheck,
+                      charge,
+                      gc,
+                      creditNote,
+                      totalPayments,
+                      amountsMatch,
+                      storeId: currentUser?.storeId,
+                      branch: currentUser?.branch,
+                      region: currentUser?.region,
+                      province: currentUser?.province,
+                      city: currentUser?.city,
+                      lessor: currentUser?.lessor,
+                      mallName: currentUser?.mallName,
+                      transactionCount,
+                      headCount,
+                    });
+                    // Reset data
+                    setExcelBData(null);
+                    setExcelCData(null);
+                    setBranchCode(null);
+                    setTransactionCount(undefined);
+                    setHeadCount(undefined);
+                    setHasValidationErrors(false);
+                    setClearTrigger(prev => prev + 1);
 
-                      // Show success modal
-                      setNotificationType('success');
-                      setNotificationTitle('Success!');
-                      setNotificationMessage('Sales summary saved successfully!');
-                      setNotificationModalOpen(true);
-                    } catch (error) {
-                      console.error('Error saving sales summary:', error);
-                      // Show error modal
-                      setNotificationType('error');
-                      setNotificationTitle('Error');
-                      setNotificationMessage('Failed to save sales summary. Please try again.');
-                      setNotificationModalOpen(true);
-                    }
-                  }}
+                    // Show success modal
+                    setNotificationType('success');
+                    setNotificationTitle('Success!');
+                    setNotificationMessage('Sales summary saved successfully!');
+                    setNotificationModalOpen(true);
+                  } catch (error) {
+                    console.error('Error saving sales summary:', error);
+                    // Show error modal
+                    setNotificationType('error');
+                    setNotificationTitle('Error');
+                    setNotificationMessage('Failed to save sales summary. Please try again.');
+                    setNotificationModalOpen(true);
+                  }
+                }}
               >
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

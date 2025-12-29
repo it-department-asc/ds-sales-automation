@@ -26,7 +26,7 @@ export default function ExcelA() {
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        setParsedData(jsonData);
+        setParsedData(jsonData.slice(1)); // Remove header row
       };
       reader.readAsArrayBuffer(selectedFile);
     }
@@ -46,7 +46,21 @@ export default function ExcelA() {
   const handleSaveToConvex = async () => {
     if (parsedData.length > 0) {
       try {
-        await saveToConvex({ fileName, data: parsedData });
+        const fileId = crypto.randomUUID();
+        const chunkSize = 8000;
+        const chunks = [];
+        for (let i = 0; i < parsedData.length; i += chunkSize) {
+          chunks.push(parsedData.slice(i, i + chunkSize));
+        }
+        // Save each chunk
+        for (let partition = 0; partition < chunks.length; partition++) {
+          await saveToConvex({
+            fileId,
+            fileName,
+            partition,
+            data: chunks[partition],
+          });
+        }
         alert("Data saved to Convex!");
         setParsedData([]);
         setFile(null);
