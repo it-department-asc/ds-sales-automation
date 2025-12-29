@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/nextjs';
-import { Menu, Store } from 'lucide-react';
+import { Menu, Store, Home, FileText } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { AuthButtons } from './AuthButtons';
 import { useQuery } from 'convex/react';
@@ -24,8 +24,18 @@ export function Header() {
             </DrawerHeader>
             <div className="p-4">
               <ul className="space-y-2">
-                <li><a href="/" className="text-foreground hover:text-primary">Home</a></li>
-                <li><a href="/upload/excel-view" className="text-foreground hover:text-primary">Upload</a></li>
+                <li>
+                  <a href="/" className="flex items-center gap-3 text-foreground hover:text-primary transition-colors p-3 rounded-lg hover:bg-accent">
+                    <Home className="h-5 w-5" />
+                    Home
+                  </a>
+                </li>
+                <li>
+                  <a href="/upload/excel-view" className="flex items-center gap-3 text-foreground hover:text-primary transition-colors p-3 rounded-lg hover:bg-accent">
+                    <FileText className="h-5 w-5" />
+                    Upload
+                  </a>
+                </li>
               </ul>
             </div>
           </DrawerContent>
@@ -36,7 +46,7 @@ export function Header() {
           {isAdmin && <Menu onClick={() => setOpen(true)} className="cursor-pointer h-6 w-6 mr-2 text-foreground" />}
           <div className="h-8 w-8 bg-gradient-to-br from-primary to-primary/70 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-sm">DS</span>
-          </div>        
+          </div>
         </div>
         <div className="flex items-center">
           <SignedOut>
