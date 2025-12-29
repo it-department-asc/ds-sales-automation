@@ -7,7 +7,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       <main className="container mx-auto px-4 py-8 md:py-16 flex items-center justify-center min-h-screen">
-        <div className="text-center max-w-6xl w-full">
+        <div className="text-center max-w-8xl w-full">
           <SignedOut>
             {/* Hero Section */}
             <div className="mb-12 md:mb-16">

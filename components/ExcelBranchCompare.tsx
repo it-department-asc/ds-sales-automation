@@ -4,8 +4,8 @@ import ExcelC from './ExcelC';
 
 type ExcelBranchCompareProps = {
   excelAProducts: any;
-  onExcelBData?: (data: { headers: string[], rows: any[][] }) => void;
-  onExcelCData?: (data: { headers: string[], rows: any[][] }) => void;
+  onExcelBData?: (data: { headers: string[], rows: any[][], period?: string }) => void;
+  onExcelCData?: (data: { headers: string[], rows: any[][], period?: string }) => void;
   onBranchCode?: (branch: string | null) => void;
   onClear?: () => void;
   clearTrigger?: number;
@@ -23,14 +23,28 @@ const ExcelBranchCompare: React.FC<ExcelBranchCompareProps> = ({
 }) => {
   const [branchCode, setBranchCode] = useState<string | null>(null);
   const [clearTrigger, setClearTrigger] = useState<number>(0);
+  const [excelBPeriod, setExcelBPeriod] = useState<string | null>(null);
+  const [excelCPeriod, setExcelCPeriod] = useState<string | null>(null);
 
   const handleBranchCode = (branch: string | null) => {
     setBranchCode(branch);
     if (onBranchCode) onBranchCode(branch);
   };
 
+  const handleExcelBData = (data: { headers: string[], rows: any[][], period?: string }) => {
+    setExcelBPeriod(data.period || null);
+    if (onExcelBData) onExcelBData(data);
+  };
+
+  const handleExcelCData = (data: { headers: string[], rows: any[][], period?: string }) => {
+    setExcelCPeriod(data.period || null);
+    if (onExcelCData) onExcelCData(data);
+  };
+
   const handleClear = () => {
     setBranchCode(null);
+    setExcelBPeriod(null);
+    setExcelCPeriod(null);
     setClearTrigger(prev => prev + 1);
     if (onBranchCode) onBranchCode(null);
     if (onClear) onClear();
@@ -51,17 +65,19 @@ const ExcelBranchCompare: React.FC<ExcelBranchCompareProps> = ({
         onBranchCode={handleBranchCode}
         existingBranchCode={branchCode}
         clearTrigger={clearTrigger}
-        onData={onExcelBData}
+        onData={handleExcelBData}
         currentUser={currentUser}
         hasProductData={hasProductData}
+        existingPeriod={excelCPeriod}
       />
       <ExcelC
         onBranchCode={handleBranchCode}
         existingBranchCode={branchCode}
         clearTrigger={clearTrigger}
-        onData={onExcelCData}
+        onData={handleExcelCData}
         currentUser={currentUser}
         hasProductData={hasProductData}
+        existingPeriod={excelBPeriod}
       />
       {branchCode && (
         <div className="mt-4 text-center">

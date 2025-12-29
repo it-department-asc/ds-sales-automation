@@ -36,6 +36,7 @@ export default defineSchema({
   userSalesSummaries: defineTable({
     userId: v.id("users"),
     branchCode: v.string(),
+    period: v.optional(v.string()), // Date period of the report (e.g., "December 17, 2025")
     regularQty: v.number(),
     regularAmt: v.union(v.number(), v.string()),
     nonRegularQty: v.number(),
