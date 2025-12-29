@@ -7,18 +7,20 @@ type ExcelBProps = {
   onBranchCode?: (branch: string | null) => void;
   existingBranchCode?: string | null;
   clearTrigger?: number;
-  onData?: (data: { headers: string[], rows: any[][] }) => void;
+  onData?: (data: { headers: string[], rows: any[][], period?: string }) => void;
   currentUser?: any;
   hasProductData?: boolean;
+  existingPeriod?: string | null;
 };
 
-const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingBranchCode, clearTrigger, onData, currentUser, hasProductData = true }) => {
+const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingBranchCode, clearTrigger, onData, currentUser, hasProductData = true, existingPeriod }) => {
   const { toast } = useToast();
   const [excelBHeaders, setExcelBHeaders] = useState<string[]>([]);
   const [excelBRows, setExcelBRows] = useState<any[][]>([]);
   const [branchCode, setBranchCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [period, setPeriod] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleClear = () => {
@@ -27,7 +29,9 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
     setError(null);
     setBranchCode(null);
     setFileName(null);
+    setPeriod(null);
     if (onBranchCode) onBranchCode(null);
+    if (onData) onData({ headers: [], rows: [], period: undefined });
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -46,7 +50,58 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
       const allRows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
       if (allRows.length === 0) throw new Error('The file is empty or could not be read.');
 
-      // Find the header row (look for 'barcode' column)
+      // Extract period from the file
+      let extractedPeriod: string | null = null;
+
+      // First pass: look for YYYY-MM-DD format anywhere in the file
+      for (const row of allRows) {
+        const rowText = row.map(cell => String(cell ?? '').trim()).join(' ');
+        console.log('ExcelB: checking row for YYYY-MM-DD:', JSON.stringify(rowText));
+        const dateMatch = rowText.match(/^(\d{4}-\d{2}-\d{2})$/) || rowText.match(/^\s*(\d{4}-\d{2}-\d{2})\s*$/);
+        if (dateMatch) {
+          const dateStr = dateMatch[1];
+          // Format the date as "Month DD, YYYY"
+          const date = new Date(dateStr + 'T00:00:00');
+          const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                            'July', 'August', 'September', 'October', 'November', 'December'];
+          extractedPeriod = `${monthNames[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+          console.log('ExcelB: found and formatted date:', extractedPeriod);
+          break;
+        }
+      }
+
+      // Second pass: if no YYYY-MM-DD found, look for descriptive text
+      if (!extractedPeriod) {
+        for (const row of allRows) {
+          const rowText = row.map(cell => String(cell ?? '').trim()).join(' ');
+          console.log('ExcelB: checking row for period text:', JSON.stringify(rowText));
+          const periodMatch = rowText.match(/For the Period of (.+?) to (.+?)(?:\t|$)/);
+          if (periodMatch) {
+            extractedPeriod = periodMatch[1].trim();
+            console.log('ExcelB: found period text:', extractedPeriod);
+            break;
+          }
+        }
+      }
+
+      console.log('ExcelB: final extracted period:', extractedPeriod);
+      setPeriod(extractedPeriod);
+
+      // Check if period matches existing period from other file
+      if (existingPeriod && extractedPeriod && extractedPeriod !== existingPeriod) {
+        setError(`Period mismatch: This file is for "${extractedPeriod}" but the other file is for "${existingPeriod}". Please ensure both files are for the same date period.`);
+        setExcelBHeaders([]);
+        setExcelBRows([]);
+        setBranchCode(null);
+        setPeriod(null); // Clear period on mismatch
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        toast({
+          variant: "destructive",
+          title: "Period Mismatch",
+          description: `Item Sales Report period "${extractedPeriod}" does not match Post Collection Report period "${existingPeriod}". Please upload files for the same date.`,
+        });
+        return;
+      }
       const headerRowIndex = allRows.findIndex(row =>
         row.some(cell => typeof cell === 'string' && cell.trim().toLowerCase() === 'barcode')
       );
@@ -55,6 +110,7 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
         setExcelBHeaders([]);
         setExcelBRows([]);
         setBranchCode(null);
+        setPeriod(null); // Clear period on error
         return;
       }
       const realHeaders = allRows[headerRowIndex].map(h => String(h ?? '').trim());
@@ -71,6 +127,7 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
         setExcelBHeaders([]);
         setExcelBRows([]);
         setBranchCode(null);
+        setPeriod(null); // Clear period on branch mismatch
         setError(msg);
         if (fileInputRef.current) fileInputRef.current.value = '';
         if (onBranchCode) onBranchCode(null);
@@ -87,8 +144,7 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
         const msg = `You are not assigned to this branch. Your assigned branch is ${userStoreInfo}, but the file is for ${branch}.`;
         setExcelBHeaders([]);
         setExcelBRows([]);
-        setBranchCode(null);
-        setError(msg);
+        setBranchCode(null);        setPeriod(null); // Clear period on branch assignment error        setError(msg);
         if (fileInputRef.current) fileInputRef.current.value = '';
         if (onBranchCode) onBranchCode(null);
         toast({
@@ -152,13 +208,14 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
       setExcelBRows(mergedRows);
       setFileName(file.name);
       setError(null);
-      if (onData) onData({ headers: mergedHeaders, rows: mergedRows });
+      if (onData) onData({ headers: mergedHeaders, rows: mergedRows, period: extractedPeriod || undefined });
       
       // Reset file input to allow re-uploading the same file
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       setError('Failed to parse file.');
       setBranchCode(null);
+      setPeriod(null); // Clear period on error
       if (onBranchCode) onBranchCode(null);
     }
   };
@@ -181,9 +238,9 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-8 max-w-7xl mx-auto mt-8">
+    <div className="bg-white rounded-xl shadow-lg p-8 max-w-8xl mx-auto mt-8">
       <h2 className="text-2xl font-bold mb-2 text-left">
-        Upload Item Sales Report{branchCode ? ` - ${branchCode}` : ''} <span className="text-red-500">*</span>
+        Upload Item Sales Report{branchCode ? ` - ${branchCode}` : ''}{excelBRows.length > 0 && period ? ` (${period})` : ''} <span className="text-red-500">*</span>
       </h2>
       <p className="text-gray-600 mb-6 text-left">Upload your ExcelB file (.xlsx, .xls, .csv) to compare sales with product data.</p>
       {fileName && (

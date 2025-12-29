@@ -7,6 +7,7 @@ import { AdminDashboard } from "../admin/components/AdminDashboard";
 import { UserDashboard } from "../user/components/UserDashboard";
 import { WaitingForBranch } from "./WaitingForBranch";
 import { Loading } from "../../components/ui/loading";
+import { SalesSummaryReminderModal } from "./SalesSummaryReminderModal";
 
 export function SignedInContent() {
   const { user, isLoaded: clerkLoaded } = useUser();
@@ -120,6 +121,7 @@ function RoleBasedDashboard({ user, currentUser }: { user: any, currentUser: any
     return (
       <>
         <UserWelcome user={user} currentUser={currentUser} />
+        <SalesSummaryReminderModal currentUser={currentUser} />
         <UserDashboard currentUser={currentUser} />
       </>
     );

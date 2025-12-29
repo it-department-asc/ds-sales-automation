@@ -10,6 +10,8 @@ interface TableFiltersProps {
   onRoleFilterChange: (value: string) => void;
   statusFilter: string;
   onStatusFilterChange: (value: string) => void;
+  salesSummaryFilter: string;
+  onSalesSummaryFilterChange: (value: string) => void;
   onClearFilters: () => void;
 }
 
@@ -20,11 +22,13 @@ export function TableFilters({
   onRoleFilterChange,
   statusFilter,
   onStatusFilterChange,
+  salesSummaryFilter,
+  onSalesSummaryFilterChange,
   onClearFilters,
 }: TableFiltersProps) {
   const [showFilters, setShowFilters] = useState(false);
 
-  const hasActiveFilters = searchTerm || roleFilter || statusFilter;
+  const hasActiveFilters = searchTerm || roleFilter || statusFilter || salesSummaryFilter;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4">
@@ -54,7 +58,7 @@ export function TableFilters({
           Filters
           {hasActiveFilters && (
             <span className="ml-1 bg-blue-600 text-white text-xs rounded-full px-2 py-0.5">
-              {[searchTerm, roleFilter, statusFilter].filter(Boolean).length}
+              {[searchTerm, roleFilter, statusFilter, salesSummaryFilter].filter(Boolean).length}
             </span>
           )}
         </button>
@@ -74,7 +78,7 @@ export function TableFilters({
       {/* Filter Options */}
       {showFilters && (
         <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Role Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -104,6 +108,22 @@ export function TableFilters({
                 <option value="">All Statuses</option>
                 <option value="active">Active</option>
                 <option value="blocked">Blocked</option>
+              </select>
+            </div>
+
+            {/* Sales Summary Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Sales Summary
+              </label>
+              <select
+                value={salesSummaryFilter}
+                onChange={(e) => onSalesSummaryFilterChange(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+              >
+                <option value="">All Users</option>
+                <option value="submitted">Has Submitted</option>
+                <option value="not-submitted">Not Submitted</option>
               </select>
             </div>
           </div>

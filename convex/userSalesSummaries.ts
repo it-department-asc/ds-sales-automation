@@ -4,6 +4,7 @@ import { v } from "convex/values";
 export const saveUserSalesSummary = mutation({
   args: {
     branchCode: v.string(),
+    period: v.optional(v.string()),
     regularQty: v.number(),
     regularAmt: v.number(),
     nonRegularQty: v.number(),
@@ -41,6 +42,7 @@ export const saveUserSalesSummary = mutation({
     await ctx.db.insert("userSalesSummaries", {
       userId: user._id,
       branchCode: args.branchCode,
+      period: args.period,
       regularQty: args.regularQty,
       regularAmt: args.regularAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       nonRegularQty: args.nonRegularQty,

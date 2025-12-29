@@ -21,6 +21,36 @@ export function AdminDashboard() {
     const [searchTerm, setSearchTerm] = useState('');
     const [roleFilter, setRoleFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
+    const [salesSummaryFilter, setSalesSummaryFilter] = useState('');
+
+    // Create mapping of user IDs to their latest sales summary
+    const userSalesSummaryMap = useMemo(() => {
+        if (!allSalesSummaries) return new Map();
+
+        const map = new Map();
+        allSalesSummaries.forEach(summary => {
+            const existing = map.get(summary.userId);
+            if (!existing || new Date(summary.createdAt) > new Date(existing.createdAt)) {
+                map.set(summary.userId, summary);
+            }
+        });
+        return map;
+    }, [allSalesSummaries]);
+
+    // Helper function to get current Philippine date (YYYY-MM-DD)
+    const getPhilippineDate = () => {
+        const now = new Date();
+        // Philippine time is UTC+8
+        const philippineTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+        return philippineTime.toISOString().split('T')[0]; // YYYY-MM-DD format
+    };
+
+    // Helper function to check if a date is today in Philippine time
+    const isTodayPhilippineTime = (date: Date) => {
+        const datePhilippine = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+        const todayPhilippine = getPhilippineDate();
+        return datePhilippine.toISOString().split('T')[0] === todayPhilippine;
+    };
 
     // Filtered users based on search and filters
     const filteredUsers = useMemo(() => {
@@ -47,9 +77,16 @@ export function AdminDashboard() {
             // Status filter
             const matchesStatus = !statusFilter || user.status === statusFilter;
 
-            return matchesSearch && matchesRole && matchesStatus;
+            // Sales summary filter
+            const userSummary = userSalesSummaryMap.get(user._id);
+            const hasSubmittedToday = userSummary && isTodayPhilippineTime(new Date(userSummary.createdAt));
+            const matchesSalesSummaryFilter = !salesSummaryFilter ||
+                (salesSummaryFilter === 'submitted' && hasSubmittedToday) ||
+                (salesSummaryFilter === 'not-submitted' && !hasSubmittedToday);
+
+            return matchesSearch && matchesRole && matchesStatus && matchesSalesSummaryFilter;
         });
-    }, [allUsers, searchTerm, roleFilter, statusFilter]);
+    }, [allUsers, searchTerm, roleFilter, statusFilter, salesSummaryFilter, userSalesSummaryMap]);
 
     const handleEdit = (userId: Id<"users">) => {
         setEditingUserId(userId);
@@ -68,6 +105,7 @@ export function AdminDashboard() {
         setSearchTerm('');
         setRoleFilter('');
         setStatusFilter('');
+        setSalesSummaryFilter('');
     };
 
     const handleGenerateReport = () => {
@@ -170,7 +208,7 @@ export function AdminDashboard() {
                             </button>
                         </div>
                     </div>
-                    {/* Desktop count */}  
+                    {/* Desktop count */}
                     <div className="hidden sm:block">
                         <div className="flex items-center space-x-4">
                             <div className="flex items-center space-x-2 text-sm">
@@ -204,6 +242,8 @@ export function AdminDashboard() {
                 onRoleFilterChange={setRoleFilter}
                 statusFilter={statusFilter}
                 onStatusFilterChange={setStatusFilter}
+                salesSummaryFilter={salesSummaryFilter}
+                onSalesSummaryFilterChange={setSalesSummaryFilter}
                 onClearFilters={handleClearFilters}
             />
 
@@ -216,6 +256,7 @@ export function AdminDashboard() {
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sales Summary</th>
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Store ID</th>
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Branch</th>
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Region</th>
@@ -229,7 +270,7 @@ export function AdminDashboard() {
                         <tbody className="bg-white divide-y divide-gray-200">
                             {filteredUsers?.length === 0 ? (
                                 <tr>
-                                    <td colSpan={12} className="px-4 sm:px-8 py-2 sm:py-4">
+                                    <td colSpan={13} className="px-4 sm:px-8 py-2 sm:py-4">
                                         <EmptyState
                                             type={allUsers?.length === 0 ? 'no-users' : 'no-results'}
                                             searchTerm={searchTerm}
@@ -239,72 +280,105 @@ export function AdminDashboard() {
                                 </tr>
                             ) : (
                                 filteredUsers?.map((user) => (
-                                <tr key={user._id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => handleEdit(user._id)}>
-                                    <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap">
-                                        <div className="flex items-center">
-                                            <div className="flex-shrink-0 h-8 w-8 bg-gray-200 rounded-full flex items-center justify-center">
-                                                <span className="text-sm font-medium text-gray-600">
-                                                    {user.firstName?.[0]}{user.lastName?.[0]}
-                                                </span>
-                                            </div>
-                                            <div className="ml-3">
-                                                <div className="text-sm font-medium text-gray-900">
-                                                    <TextHighlight
-                                                        text={`${user.firstName || ''} ${user.lastName || ''}`.trim()}
-                                                        searchTerm={searchTerm}
-                                                    />
+                                    <tr key={user._id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => handleEdit(user._id)}>
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap">
+                                            <div className="flex items-center">
+                                                <div className="flex-shrink-0 h-8 w-8 bg-gray-200 rounded-full flex items-center justify-center">
+                                                    <span className="text-sm font-medium text-gray-600">
+                                                        {user.firstName?.[0]}{user.lastName?.[0]}
+                                                    </span>
+                                                </div>
+                                                <div className="ml-3">
+                                                    <div className="text-sm font-medium text-gray-900">
+                                                        <TextHighlight
+                                                            text={`${user.firstName || ''} ${user.lastName || ''}`.trim()}
+                                                            searchTerm={searchTerm}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500">
-                                        <TextHighlight text={user.email || ''} searchTerm={searchTerm} />
-                                    </td>
-                                    <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap">
-                                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${user.role === 'admin'
-                                            ? 'bg-purple-100 text-purple-800'
-                                            : 'bg-gray-100 text-gray-800'
-                                            }`}>
-                                            {user.role}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap">
-                                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${user.status === 'active'
-                                            ? 'bg-green-100 text-green-800'
-                                            : 'bg-red-100 text-red-800'
-                                            }`}>
-                                            {user.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                        <TextHighlight text={user.storeId || '-'} searchTerm={searchTerm} />
-                                    </td>
-                                    <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                        <TextHighlight text={user.branch || '-'} searchTerm={searchTerm} />
-                                    </td>
-                                    <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                        <TextHighlight text={user.region || '-'} searchTerm={searchTerm} />
-                                    </td>
-                                    <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                        <TextHighlight text={user.province || '-'} searchTerm={searchTerm} />
-                                    </td>
-                                    <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                        <TextHighlight text={user.city || '-'} searchTerm={searchTerm} />
-                                    </td>
-                                    <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                        <TextHighlight text={user.lessor || '-'} searchTerm={searchTerm} />
-                                    </td>
-                                    <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                        <TextHighlight text={user.mallName || '-'} searchTerm={searchTerm} />
-                                    </td>
-                                    <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm sticky right-0 bg-white border-l border-gray-200" onClick={(e) => e.stopPropagation()}>
-                                        <UserActionsMenu
-                                            user={{ ...user, status: user.status || "active" }}
-                                            onEdit={() => handleEdit(user._id)}
-                                        />
-                                    </td>
-                                </tr>
-                            )))}
+                                        </td>
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <TextHighlight text={user.email || ''} searchTerm={searchTerm} />
+                                        </td>
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap">
+                                            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${user.role === 'admin'
+                                                ? 'bg-purple-100 text-purple-800'
+                                                : 'bg-gray-100 text-gray-800'
+                                                }`}>
+                                                {user.role}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap">
+                                            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${user.status === 'active'
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-red-100 text-red-800'
+                                                }`}>
+                                                {user.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap">
+                                            {(() => {
+                                                const userSummary = userSalesSummaryMap.get(user._id);
+                                                const hasSubmittedToday = userSummary && isTodayPhilippineTime(new Date(userSummary.createdAt));
+
+                                                if (hasSubmittedToday) {
+                                                    const uploadDate = new Date(userSummary.createdAt);
+                                                    const formattedDate = uploadDate.toLocaleDateString('en-US', {
+                                                        year: 'numeric',
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    });
+                                                    return (
+                                                        <div className="flex flex-col">
+                                                            <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 w-fit">
+                                                                Submitted
+                                                            </span>
+                                                            <span className="text-xs text-gray-500 mt-1">
+                                                                {formattedDate}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                } else {
+                                                    return (
+                                                        <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                                            Not Submitted
+                                                        </span>
+                                                    );
+                                                }
+                                            })()}
+                                        </td>
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                            <TextHighlight text={user.storeId || '-'} searchTerm={searchTerm} />
+                                        </td>
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                            <TextHighlight text={user.branch || '-'} searchTerm={searchTerm} />
+                                        </td>
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                            <TextHighlight text={user.region || '-'} searchTerm={searchTerm} />
+                                        </td>
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                            <TextHighlight text={user.province || '-'} searchTerm={searchTerm} />
+                                        </td>
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                            <TextHighlight text={user.city || '-'} searchTerm={searchTerm} />
+                                        </td>
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                            <TextHighlight text={user.lessor || '-'} searchTerm={searchTerm} />
+                                        </td>
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                            <TextHighlight text={user.mallName || '-'} searchTerm={searchTerm} />
+                                        </td>
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm sticky right-0 bg-white border-l border-gray-200" onClick={(e) => e.stopPropagation()}>
+                                            <UserActionsMenu
+                                                user={{ ...user, status: user.status || "active" }}
+                                                onEdit={() => handleEdit(user._id)}
+                                            />
+                                        </td>
+                                    </tr>
+                                )))}
                         </tbody>
                     </table>
                 </div>

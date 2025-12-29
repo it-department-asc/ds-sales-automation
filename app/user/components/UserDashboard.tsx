@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { ExcelBranchCompare } from "../../../components/ExcelBranchCompare";
 import { ValidationErrorModal } from "../../../components/ValidationErrorModal";
 import { SuccessErrorModal } from "../../../components/SuccessErrorModal";
+import { SalesSummaryReminderModal } from "../../components/SalesSummaryReminderModal";
 
 
 export function UserDashboard({ currentUser }: { currentUser: any }) {
@@ -54,8 +55,8 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
 
   // Test JWT token
   const [jwtToken, setJwtToken] = useState<string | null>(null);
-  const [excelBData, setExcelBData] = useState<{ headers: string[], rows: any[][] } | null>(null);
-  const [excelCData, setExcelCData] = useState<{ headers: string[], rows: any[][] } | null>(null);
+  const [excelBData, setExcelBData] = useState<{ headers: string[], rows: any[][], period?: string } | null>(null);
+  const [excelCData, setExcelCData] = useState<{ headers: string[], rows: any[][], period?: string } | null>(null);
   const [branchCode, setBranchCode] = useState<string | null>(null);
   const [transactionCount, setTransactionCount] = useState<number | undefined>(undefined);
   const [headCount, setHeadCount] = useState<number | undefined>(undefined);
@@ -117,6 +118,7 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
       setValidationModalOpen(false);
     }
   }, [excelBData]);
+
 
   useEffect(() => {
     const testToken = async () => {
@@ -196,9 +198,9 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
     }
 
     return (
-      <div className="rounded-lg mt-8 max-w-7xl mx-auto">
+      <div className="rounded-lg mt-8 max-w-8xl mx-auto">
         <div className="mb-8">
-          <div className="max-w-7xl mx-auto space-y-4">
+          <div className="max-w-8xl mx-auto space-y-4">
             {adminUploaded ? (
               <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                 <div className="flex items-start gap-4">
@@ -487,6 +489,7 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
                   try {
                     await saveSalesSummary({
                       branchCode: branchCode!,
+                      period: excelBData?.period || excelCData?.period, // Use period from Excel files
                       regularQty,
                       regularAmt,
                       nonRegularQty,
@@ -555,6 +558,8 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
           title={notificationTitle}
           message={notificationMessage}
         />
+
+        <SalesSummaryReminderModal currentUser={currentUser} />
       </div>
     );
   }
