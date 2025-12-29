@@ -42,6 +42,8 @@ const ExcelBranchCompare: React.FC<ExcelBranchCompareProps> = ({
     }
   }, [externalClearTrigger]);
 
+  const hasProductData = Array.isArray(excelAProducts) && excelAProducts.length > 0;
+
   return (
     <div>
       <ExcelB
@@ -51,6 +53,7 @@ const ExcelBranchCompare: React.FC<ExcelBranchCompareProps> = ({
         clearTrigger={clearTrigger}
         onData={onExcelBData}
         currentUser={currentUser}
+        hasProductData={hasProductData}
       />
       <ExcelC
         onBranchCode={handleBranchCode}
@@ -58,6 +61,7 @@ const ExcelBranchCompare: React.FC<ExcelBranchCompareProps> = ({
         clearTrigger={clearTrigger}
         onData={onExcelCData}
         currentUser={currentUser}
+        hasProductData={hasProductData}
       />
       {branchCode && (
         <div className="mt-4 text-center">

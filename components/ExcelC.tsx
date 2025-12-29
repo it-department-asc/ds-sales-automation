@@ -12,9 +12,10 @@ type ExcelCProps = {
   clearTrigger?: number;
   onData?: (data: { headers: string[], rows: any[][] }) => void;
   currentUser?: any;
+  hasProductData?: boolean;
 };
 
-const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clearTrigger, onData, currentUser }) => {
+const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clearTrigger, onData, currentUser, hasProductData = true }) => {
   const { toast } = useToast();
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<any[][]>([]);
@@ -179,12 +180,12 @@ const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clear
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-8 max-w-7xl mx-auto mt-8">
-      <h2 className="text-2xl font-bold mb-2 text-center">
-        Upload Post Collection Report {branchCode ? ` - ${branchCode}` : ''}
+      <h2 className="text-2xl font-bold mb-2 text-left">
+        Upload Post Collection Report {branchCode ? ` - ${branchCode}` : ''} <span className="text-red-500">*</span>
       </h2>
-      <p className="text-gray-600 mb-6 text-center">Upload your ExcelC file (.xlsx, .xls, .csv) to compare sales with product data.</p>
+      <p className="text-gray-600 mb-6 text-left">Upload your ExcelC file (.xlsx, .xls, .csv) to compare sales with product data.</p>
       {fileName && (
-        <div className="mb-4 text-center">
+        <div className="mb-4 text-left">
           File Uploaded:{" "}
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-sm bg-green-100 text-green-800">
              📄 {fileName}
@@ -201,10 +202,14 @@ const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clear
         </div>
       )}
       <div
-        className="flex flex-col items-center justify-center border-2 border-dashed border-blue-400 rounded-lg p-6 mb-4 cursor-pointer bg-blue-50 hover:bg-blue-100 transition"
-        onClick={() => fileInputRef.current?.click()}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
+        className={`flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 mb-4 transition ${
+          hasProductData
+            ? 'border-blue-400 bg-blue-50 hover:bg-blue-100 cursor-pointer'
+            : 'border-gray-300 bg-gray-50 cursor-not-allowed opacity-50'
+        }`}
+        onClick={hasProductData ? () => fileInputRef.current?.click() : undefined}
+        onDrop={hasProductData ? handleDrop : undefined}
+        onDragOver={hasProductData ? handleDragOver : undefined}
         style={{ minHeight: '120px' }}
       >
         <input
@@ -214,8 +219,12 @@ const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clear
           onChange={handleInputChange}
           style={{ display: 'none' }}
         />
-        <span className="text-blue-700 font-semibold text-lg mb-2">Drag & drop your file here</span>
-        <span className="text-gray-500 text-sm">or click to select a file</span>
+        <span className={`font-semibold text-lg mb-2 ${hasProductData ? 'text-blue-700' : 'text-gray-500'}`}>
+          {hasProductData ? 'Drag & drop your file here' : 'Product data required to upload files'}
+        </span>
+        <span className={`text-sm ${hasProductData ? 'text-gray-500' : 'text-gray-400'}`}>
+          {hasProductData ? 'or click to select a file' : 'Please wait for admin to upload product data'}
+        </span>
       </div>
       {error && <div className="text-red-600 font-medium mb-4 text-center">{error}</div>}
       {headers.length > 0 && rows.length > 0 && (

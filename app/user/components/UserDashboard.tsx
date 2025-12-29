@@ -196,124 +196,104 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
     }
 
     return (
-      <div className="bg-white rounded-lg p-8 mt-12 max-w-7xl mx-auto">
-        <h2 className="text-2xl font-bold mb-4 text-center">Upload Your Item Sales Report</h2>
-        <div className="mb-6">
-          <div className="flex flex-col gap-2 items-center">
+      <div className="rounded-lg mt-8 max-w-7xl mx-auto">
+        <div className="mb-8">
+          <div className="max-w-7xl mx-auto space-y-4">
             {adminUploaded ? (
-              <div className="flex flex-col items-center">
-                <span className="text-green-700 font-medium">
-                  Admin uploaded: <span className="font-semibold">{adminFileName}</span> (Convex)
-                  {adminConvexDate && (
-                    <span className="text-xs text-gray-600 ml-2">on {adminConvexDate}</span>
-                  )}
-                </span>
-                {adminConvexUploader && (
-                  <span className="text-xs text-gray-500">Uploader: {adminConvexUploader}</span>
-                )}
-                {adminLoadingText && (
-                  <span className="text-xs text-blue-500 ml-2">{adminLoadingText}</span>
-                )}
-                {/* Convex preview table */}
-                {/* {adminConvexDataPreview && typeof adminConvexDataPreview === 'string' ? (
-                  <div className="mt-2 w-full text-xs text-red-500">{adminConvexDataPreview}</div>
-                ) : adminConvexDataPreview && Array.isArray(adminConvexDataPreview) && adminConvexDataPreview.length > 0 ? (
-                  <div className="mt-2 w-full">
-                    <span className="text-xs text-gray-700 font-semibold">Preview of uploaded file:</span>
-                    <div className="overflow-x-auto mt-1 border rounded bg-gray-50 max-h-[32rem]" style={{ maxHeight: '32rem', minWidth: '100%' }}>
-                      <table className="min-w-[56rem] w-full text-sm text-left">
-                        <thead>
-                          <tr>
-                            {Object.keys(adminConvexDataPreview[0]).map((key) => (
-                              <th key={key} className="px-4 py-2 border-b font-bold bg-gray-100 text-base">{key}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {adminConvexDataPreview.map((row, idx) => (
-                            <tr key={idx}>
-                              {Object.values(row).map((val, i) => (
-                                <td key={i} className="px-4 py-2 border-b text-base">{String(val)}</td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-bold text-gray-900">Product Data Available</h2>
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Convex
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 text-left">Admin has uploaded the latest product file for processing</p>
                     </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                      <div className="flex items-center py-2 border-b border-gray-100">
+                        <span className="font-medium text-gray-700">File Name:</span>
+                        <span className="text-gray-900 truncate ml-2">{adminFileName}</span>
+                      </div>
+                      {adminConvexDate && (
+                        <div className="flex items-center py-2 border-b border-gray-100">
+                          <span className="font-medium text-gray-700">Uploaded:</span>
+                          <span className="text-gray-900 ml-2">{adminConvexDate}</span>
+                        </div>
+                      )}
+                      {adminConvexUploader && (
+                        <div className="flex items-center py-2 border-b border-gray-100">
+                          <span className="font-medium text-gray-700">By:</span>
+                          <span className="text-gray-900 ml-2">{adminConvexUploader}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {adminLoadingText && (
+                      <div className="mt-4 flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-sm font-medium text-blue-700">{adminLoadingText}</span>
+                      </div>
+                    )}
                   </div>
-                ) : adminConvexDataPreview ? (
-                  <div className="mt-2 w-full">
-                    <span className="text-xs text-gray-700">Preview:</span>
-                    <pre className="bg-gray-100 rounded p-2 text-xs overflow-x-auto max-w-xs">
-                      {JSON.stringify(adminConvexDataPreview, null, 2)}
-                    </pre>
-                  </div>
-                ) : null} */}
+                </div>
               </div>
             ) : (
-              <span className="text-red-600">No admin product file found in Convex</span>
-            )}
-            {localAdminUploaded && (
-              <div className="flex flex-col items-center w-full">
-                <span className="text-green-700 font-medium">
-                  Admin uploaded: <span className="font-semibold">{localAdminFileName}</span> (LocalStorage)
-                  {localAdminDate && (
-                    <span className="text-xs text-gray-600 ml-2">on {localAdminDate}</span>
-                  )}
-                </span>
-                {/* LocalStorage preview table */}
-                {/* {(() => {
-                  if (typeof window !== 'undefined') {
-                    const local = localStorage.getItem('uploadedData');
-                    if (local) {
-                      try {
-                        const parsed = JSON.parse(local);
-                        if (parsed && parsed.data && Array.isArray(parsed.data) && Array.isArray(parsed.data[0])) {
-                          const [header, ...rows]: [string[], ...any[][]] = parsed.data;
-                          const previewRows = rows.map((row: any[]) => {
-                            const obj: { [key: string]: any } = {};
-                            (header as string[]).forEach((key: string, idx: number) => {
-                              obj[key] = row[idx];
-                            });
-                            return obj;
-                          });
-                          if (previewRows.length > 0) {
-                            return (
-                              <div className="mt-2 w-full">
-                                <span className="text-xs text-gray-700 font-semibold">Preview of uploaded file (LocalStorage):</span>
-                                <div className="overflow-x-auto mt-1 border rounded bg-gray-50 max-h-[32rem]" style={{ maxHeight: '32rem', minWidth: '100%' }}>
-                                  <table className="min-w-[80rem] max-w-[180rem] w-full text-sm text-left">
-                                    <thead>
-                                      <tr>
-                                        {Object.keys(previewRows[0]).map((key: string) => (
-                                          <th key={key} className="px-4 py-2 border-b font-bold bg-gray-100 text-base">{key}</th>
-                                        ))}
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {previewRows.map((row: { [key: string]: any }, idx: number) => (
-                                        <tr key={idx}>
-                                          {Object.values(row).map((val: any, i: number) => (
-                                            <td key={i} className="px-4 py-2 border-b text-base">{String(val)}</td>
-                                          ))}
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            );
-                          }
-                        }
-                      } catch { }
-                    }
-                  }
-                  return null;
-                })()} */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-yellow-800 mb-1 text-left">No Product Data Available</h3>
+                    <p className="text-sm text-yellow-700 text-left">Please wait for an administrator to upload the product file before proceeding with your sales summary.</p>
+                  </div>
+                </div>
               </div>
             )}
-            {!(adminUploaded || localAdminUploaded) && (
-              <span className="text-gray-500">No admin product file found</span>
+
+            {localAdminUploaded && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-lg font-semibold text-amber-800">Local Product Data</h3>
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                        LocalStorage
+                      </span>
+                    </div>
+                    <p className="text-sm text-amber-700 mb-4">Using locally stored product data (fallback)</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div className="flex justify-between items-center py-2 border-b border-amber-200">
+                        <span className="font-medium text-amber-800">File Name:</span>
+                        <span className="text-amber-900 truncate ml-2">{localAdminFileName}</span>
+                      </div>
+                      {localAdminDate && (
+                        <div className="flex justify-between items-center py-2 border-b border-amber-200">
+                          <span className="font-medium text-amber-800">Uploaded:</span>
+                          <span className="text-amber-900 ml-2">{localAdminDate}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -360,41 +340,79 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
 
         <div className="mt-8">
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-8 border border-blue-100 shadow-sm">
-            <div className="text-center mb-8">
-              <h3 className="text-3xl font-bold text-gray-800 mb-2">Additional Information</h3>
-              <p className="text-sm text-gray-600">Complete your sales summary with transaction details</p>
+            <div className="text-left mb-10">
+              <div className="flex items-center gap-4 mb-4">
+                <h3 className="text-2xl font-bold text-gray-800 mb-0">Complete Your Sales Summary</h3>
+              </div>
+              <p className="text-gray-600">Add transaction details to finalize your sales data submission</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
               <div className="group">
-                <label htmlFor="transactionCount" className="block text-base font-semibold text-gray-700 mb-3 group-focus-within:text-blue-600 transition-colors">
-                  Transaction Count
+                <label htmlFor="transactionCount" className="flex items-center gap-3 text-lg font-semibold text-gray-700 mb-4 group-focus-within:text-blue-600 transition-colors">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  Transaction Count <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
                     id="transactionCount"
                     type="number"
+                    required
                     value={transactionCount ?? ''}
                     onChange={(e) => setTransactionCount(e.target.value ? parseInt(e.target.value) : undefined)}
-                    className="w-full px-4 py-4 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm"
+                    className="w-full px-4 py-4 pl-12 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm text-lg"
                     placeholder="Enter transaction count"
                   />
+                  <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                    </svg>
+                  </div>
                 </div>
               </div>
 
               <div className="group">
-                <label htmlFor="headCount" className="block text-base font-semibold text-gray-700 mb-3 group-focus-within:text-blue-600 transition-colors">
-                  Head Count
+                <label htmlFor="headCount" className="flex items-center gap-3 text-lg font-semibold text-gray-700 mb-4 group-focus-within:text-blue-600 transition-colors">
+                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </div>
+                  Head Count <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
                     id="headCount"
                     type="number"
+                    required
                     value={headCount ?? ''}
                     onChange={(e) => setHeadCount(e.target.value ? parseInt(e.target.value) : undefined)}
-                    className="w-full px-4 py-4 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm"
+                    className="w-full px-4 py-4 pl-12 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all duration-200 bg-white shadow-sm text-lg"
                     placeholder="Enter head count"
                   />
+                  <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-8 text-left">
+              <div className="flex items-start gap-3">
+                <div className="w-5 h-5 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm text-amber-800 font-medium">Important Note</p>
+                  <p className="text-sm text-amber-700 mt-1">If you re-upload your Excel files, please re-enter the total transaction count and head count for that day. These values are not automatically preserved during re-uploads.</p>
                 </div>
               </div>
             </div>
@@ -515,7 +533,7 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
                   }
                 }}
               >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
                 Save Sales Summary
