@@ -16,8 +16,6 @@ export function UserSync() {
         email: user.primaryEmailAddress?.emailAddress || '',
         firstName: user.firstName || undefined,
         lastName: user.lastName || undefined,
-      }).then((result) => {
-        console.log('UserSync - User creation result:', result);
       }).catch((error) => {
         console.error('UserSync - User creation error:', error);
       });

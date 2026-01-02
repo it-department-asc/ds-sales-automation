@@ -296,7 +296,7 @@ export default function ReportPage() {
                                             <div className="text-sm text-gray-900">
                                                 Qty: {summary.regularQty}
                                             </div>
-                                            <div className="text-sm text-gray-500">
+                                            <div className="text-sm font-medium text-gray-900">
                                                 Amt: ₱{summary.regularAmt}
                                             </div>
                                         </td>
@@ -304,16 +304,28 @@ export default function ReportPage() {
                                             <div className="text-sm text-gray-900">
                                                 Qty: {summary.nonRegularQty}
                                             </div>
-                                            <div className="text-sm text-gray-500">
+                                            <div className="text-sm font-medium text-gray-900">
                                                 Amt: ₱{summary.nonRegularAmt}
                                             </div>
                                         </td>
                                         <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
-                                            <div className="text-sm font-medium text-gray-900">
+                                            <div className="block sm:hidden text-xs text-gray-900">
+                                                Regular: {summary.regularQty}
+                                            </div>
+                                            <div className="block sm:hidden text-xs text-gray-900">
+                                                Regular Amt: ₱{summary.regularAmt}
+                                            </div>
+                                            <div className="block sm:hidden text-xs text-gray-900">
+                                                Non-Regular: {summary.nonRegularQty}
+                                            </div>
+                                            <div className="block sm:hidden text-xs text-gray-900">
+                                                Non-Regular Amt: ₱{summary.nonRegularAmt}
+                                            </div>
+                                            <div className="hidden sm:block text-xs sm:text-sm text-gray-500">
                                                 Qty: {summary.totalQtySold}
                                             </div>
-                                            <div className="text-sm text-gray-500">
-                                                Amt: ₱{summary.totalAmt}
+                                            <div className="text-sm font-medium text-gray-900">
+                                                Total Amt: ₱{summary.totalAmt}
                                             </div>
                                         </td>
 
@@ -323,7 +335,7 @@ export default function ReportPage() {
                                         <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-900 hidden sm:table-cell">
                                             {summary.headCount || 'N/A'}
                                         </td>
-                                        <td className={`px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap sticky right-15 sm:right-20 border-l border-gray-200 z-10 group-hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                                        <td className={`px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap sticky right-15 sm:right-20 border-gray-200 z-10 group-hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${summary.amountsMatch
                                                 ? 'bg-green-100 text-green-800'
                                                 : 'bg-red-100 text-red-800'
