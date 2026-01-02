@@ -460,18 +460,35 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
                     </div>
                   </div>
 
-                  <div className="mt-3 flex items-center text-xs text-gray-600 gap-2">
-                    <span className="px-2 py-1 bg-amber-100/50 text-amber-700 rounded border border-amber-200">
-                      Step 1: Upload Excel(Item Sales & Post Collection Reports)
-                    </span>
-                    <span className="text-gray-400">→</span>
-                    <span className="px-2 py-1 bg-amber-100/50 text-amber-700 rounded border border-amber-200">
-                      Step 2: Enter Transaction & Head Counts
-                    </span>
-                    <span className="text-gray-400">→</span>
-                    <span className="px-2 py-1 bg-amber-100/50 text-amber-700 rounded border border-amber-200">
-                      Step 3: Save
-                    </span>
+                  <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                    <div className="flex items-center gap-3 text-xs text-gray-600">
+                      <span className="flex-shrink-0 w-6 h-6 bg-amber-500 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                      <span className="px-3 py-1.5 bg-amber-100/50 text-amber-700 rounded-lg border border-amber-200 font-medium">
+                        Upload Excel Files
+                      </span>
+                    </div>
+                    <div className="hidden sm:block text-amber-400">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-gray-600">
+                      <span className="flex-shrink-0 w-6 h-6 bg-amber-500 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                      <span className="px-3 py-1.5 bg-amber-100/50 text-amber-700 rounded-lg border border-amber-200 font-medium">
+                        Enter Counts
+                      </span>
+                    </div>
+                    <div className="hidden sm:block text-amber-400">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-gray-600">
+                      <span className="flex-shrink-0 w-6 h-6 bg-amber-500 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                      <span className="px-3 py-1.5 bg-amber-100/50 text-amber-700 rounded-lg border border-amber-200 font-medium">
+                        Save Summary
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/nextjs';
-import { Menu, Store, Home, FileText } from 'lucide-react';
+import { Menu, Store, Home, FileText, BarChart3 } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { AuthButtons } from './AuthButtons';
 import { useQuery } from 'convex/react';
@@ -36,6 +37,12 @@ export function Header() {
                     Upload
                   </a>
                 </li>
+                <li>
+                  <a href="/generate/report" className="flex items-center gap-3 text-foreground hover:text-primary transition-colors p-3 rounded-lg hover:bg-accent">
+                    <BarChart3 className="h-5 w-5" />
+                    Generate
+                  </a>
+                </li>
               </ul>
             </div>
           </DrawerContent>
@@ -44,9 +51,9 @@ export function Header() {
       <header className="sticky top-0 z-50 w-full flex justify-between items-center p-2 sm:p-4 bg-background shadow-sm">
         <div className="flex items-center">
           {isAdmin && <Menu onClick={() => setOpen(true)} className="cursor-pointer h-6 w-6 mr-2 text-foreground" />}
-          <div className="h-8 w-8 bg-gradient-to-br from-primary to-primary/70 rounded-lg flex items-center justify-center">
+          <Link href="/" className="h-8 w-8 bg-gradient-to-br from-primary to-primary/70 rounded-lg flex items-center justify-center hover:opacity-80 transition-opacity">
             <span className="text-white font-bold text-sm">DS</span>
-          </div>
+          </Link>
         </div>
         <div className="flex items-center">
           <SignedOut>
@@ -65,7 +72,7 @@ export function Header() {
               <div className="flex items-center gap-4">
                 {/* Store/Branch Info */}
                 {currentUser?.storeId && currentUser?.branch && (
-                  <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-accent rounded-lg border">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-accent rounded-lg border">
                     <Store className="h-4 w-4 text-muted-foreground" />
                     <div className="text-sm">
                       <span className="font-medium text-foreground">{currentUser.storeId}{" "}</span>

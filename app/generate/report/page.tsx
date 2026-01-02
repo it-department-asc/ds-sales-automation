@@ -1,0 +1,373 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { Loading } from "../../../components/ui/loading";
+import { AccessDenied } from "../../../components/ui/access-denied";
+import { Button } from "../../../components/ui/button";
+import { Trash2, Filter, Calendar, Store, X, CheckCircle } from "lucide-react";
+import { useConfirm } from "../../../hooks/use-confirm";
+import { SuccessErrorModal } from "../../../components/SuccessErrorModal";
+import { Pagination } from "../components/Pagination";
+import { ExcelExport } from "../components/ExcelExport";
+
+export default function ReportPage() {
+    const currentUser = useQuery(api.users.getCurrentUser);
+    const allSalesSummaries = useQuery(api.userSalesSummaries.getAllSalesSummaries);
+    const deleteSalesSummary = useMutation(api.userSalesSummaries.deleteSalesSummary);
+
+    const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
+    const [selectedBranch, setSelectedBranch] = useState<string>("all");
+    const [selectedStatus, setSelectedStatus] = useState<string>("all");
+    const [notificationModalOpen, setNotificationModalOpen] = useState<boolean>(false);
+    const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
+    const [notificationTitle, setNotificationTitle] = useState<string>('');
+    const [notificationMessage, setNotificationMessage] = useState<string>('');
+
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    const [pageSize] = useState<number>(20); // Fixed page size, can be made configurable later
+
+    const [ConfirmationDialog, confirm] = useConfirm("Delete Sales Summary", "Are you sure you want to delete this sales summary? This action cannot be undone.");
+
+    // Get unique periods for filtering
+    const availablePeriods = useMemo(() => {
+        if (!allSalesSummaries) return [];
+        const periods = allSalesSummaries
+            .map(summary => summary.period)
+            .filter(Boolean)
+            .filter((period, index, arr) => arr.indexOf(period) === index)
+            .sort((a, b) => new Date(b!).getTime() - new Date(a!).getTime());
+        return periods;
+    }, [allSalesSummaries]);
+
+    // Get unique branch codes for filtering
+    const availableBranches = useMemo(() => {
+        if (!allSalesSummaries) return [];
+        const branches = allSalesSummaries
+            .map(summary => summary.branchCode)
+            .filter(Boolean)
+            .filter((branch, index, arr) => arr.indexOf(branch) === index)
+            .sort();
+        return branches;
+    }, [allSalesSummaries]);
+
+    // Filter data based on selected period and branch
+    const filteredData = useMemo(() => {
+        let data = allSalesSummaries || [];
+
+        // Filter by period
+        if (selectedPeriod !== "all") {
+            data = data.filter(summary => summary.period === selectedPeriod);
+        }
+
+        // Filter by branch
+        if (selectedBranch !== "all") {
+            data = data.filter(summary => summary.branchCode === selectedBranch);
+        }
+
+        // Filter by status
+        if (selectedStatus !== "all") {
+            const isMatched = selectedStatus === "matched";
+            data = data.filter(summary => summary.amountsMatch === isMatched);
+        }
+
+        // Sort by period (latest first) when showing all periods
+        if (selectedPeriod === "all") {
+            data = data.sort((a, b) => {
+                if (!a.period && !b.period) return 0;
+                if (!a.period) return 1;
+                if (!b.period) return -1;
+                return new Date(b.period).getTime() - new Date(a.period).getTime();
+            });
+        }
+
+        // Reset to page 1 when filters change
+        setCurrentPage(1);
+
+        return data;
+    }, [allSalesSummaries, selectedPeriod, selectedBranch, selectedStatus]);
+
+    // Pagination
+    const totalRecords = filteredData.length;
+    const totalPages = Math.ceil(totalRecords / pageSize);
+    const paginatedData = useMemo(() => {
+        const startIndex = (currentPage - 1) * pageSize;
+        return filteredData.slice(startIndex, startIndex + pageSize);
+    }, [filteredData, currentPage, pageSize]);
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
+    };
+
+    const handleClearFilters = () => {
+        setSelectedPeriod("all");
+        setSelectedBranch("all");
+        setSelectedStatus("all");
+        setCurrentPage(1);
+    };
+
+    const handleDelete = async (id: string) => {
+        const confirmed = await confirm();
+        if (confirmed) {
+            try {
+                await deleteSalesSummary({ id: id as any });
+                setNotificationType('success');
+                setNotificationTitle('Success!');
+                setNotificationMessage('Sales summary deleted successfully!');
+                setNotificationModalOpen(true);
+            } catch (error) {
+                setNotificationType('error');
+                setNotificationTitle('Error');
+                setNotificationMessage('Failed to delete sales summary. Please try again.');
+                setNotificationModalOpen(true);
+            }
+        }
+    };
+
+    if (currentUser === undefined || currentUser === null) {
+        return <Loading />;
+    }
+
+    if (currentUser.role !== "admin") {
+        return <AccessDenied />;
+    }
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+            <div className="container mx-auto p-6 max-w-8xl">
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold mb-2 text-center">Sales Summaries Report</h1>
+                    <p className="text-gray-600 text-center">View and manage all user sales summaries</p>
+                </div>
+
+                {/* Filter Section */}
+                <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                            <Filter className="h-5 w-5 text-gray-500" />
+                            <h2 className="text-lg font-semibold">Filters</h2>
+                        </div>
+                        <ExcelExport
+                            data={filteredData}
+                            disabled={!filteredData || filteredData.length === 0}
+                        />
+                    </div>
+                    <div className="flex flex-wrap gap-4">
+                        <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-gray-500" />
+                            <label className="text-sm font-medium">Period:</label>
+                            <select
+                                value={selectedPeriod}
+                                onChange={(e) => setSelectedPeriod(e.target.value)}
+                                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                                <option value="all">All Periods</option>
+                                {availablePeriods.map((period) => (
+                                    <option key={period} value={period!}>
+                                        {period}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Store className="h-4 w-4 text-gray-500" />
+                            <label className="text-sm font-medium">Branch:</label>
+                            <select
+                                value={selectedBranch}
+                                onChange={(e) => setSelectedBranch(e.target.value)}
+                                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                                <option value="all">All Branches</option>
+                                {availableBranches.map((branch) => (
+                                    <option key={branch} value={branch}>
+                                        {branch}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-gray-500" />
+                            <label className="text-sm font-medium">Status:</label>
+                            <select
+                                value={selectedStatus}
+                                onChange={(e) => setSelectedStatus(e.target.value)}
+                                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                                <option value="all">All Status</option>
+                                <option value="matched">Matched</option>
+                                <option value="mismatched">Mismatched</option>
+                            </select>
+                        </div>
+                        <Button
+                            onClick={handleClearFilters}
+                            variant="outline"
+                            className="flex items-center gap-2 px-3 py-2 h-auto text-gray-600 hover:text-gray-800 border-gray-300"
+                            disabled={selectedPeriod === "all" && selectedBranch === "all" && selectedStatus === "all"}
+                        >
+                            <X className="h-4 w-4" />
+                            Clear Filters
+                        </Button>
+                    </div>
+                    <div className="mt-4 text-sm text-gray-600">
+                        Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} records
+                        {(selectedPeriod !== "all" || selectedBranch !== "all" || selectedStatus !== "all") && (
+                            <span className="ml-2">
+                                (filtered by {selectedPeriod !== "all" && `period: ${selectedPeriod}`}
+                                {(selectedPeriod !== "all" && selectedBranch !== "all") || (selectedPeriod !== "all" && selectedStatus !== "all") ? ", " : ""}
+                                {selectedBranch !== "all" && `branch: ${selectedBranch}`}
+                                {(selectedBranch !== "all" && selectedStatus !== "all") ? ", " : ""}
+                                {selectedStatus !== "all" && `status: ${selectedStatus}`})
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {/* Table Section */}
+                <div className="bg-white shadow-md rounded-lg overflow-hidden">
+                    {/* Mobile scroll indicator */}
+                    <div className="block sm:hidden px-4 py-2 bg-blue-50 border-b border-blue-200">
+                        <p className="text-xs text-blue-700 text-center">
+                            ← Swipe to scroll horizontally →
+                        </p>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-200">
+                                <tr>
+                                    <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Branch
+                                    </th>
+                                    <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Period
+                                    </th>
+                                    <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Payments
+                                    </th>
+                                    <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                                        Regular Sales
+                                    </th>
+                                    <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                                        Non-Regular Sales
+                                    </th>
+                                    <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Total Sales
+                                    </th>
+                                    <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                                        Transaction Count
+                                    </th>
+                                    <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                                        Head Count
+                                    </th>
+                                    <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-15 sm:right-20 bg-gray-200 border-l border-gray-200 z-10">
+                                        Status
+                                    </th>
+                                    <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-0 bg-gray-200 border-gray-200">
+                                        Action
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {paginatedData.map((summary, index) => (
+                                    <tr key={summary._id} className="hover:bg-gray-50 even:bg-gray-50 group">
+                                        <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                                            <div className="text-sm font-medium text-gray-900">
+                                                {summary.branchCode}
+                                            </div>
+                                        </td>
+                                        <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {summary.period || 'N/A'}
+                                        </td>
+                                        <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                                            <div className="text-sm text-gray-900">
+                                                Cash/Check: ₱{summary.cashCheck || '0.00'}
+                                            </div>
+                                            <div className="text-sm text-gray-500">
+                                                Charge: ₱{summary.charge || '0.00'}
+                                            </div>
+                                            <div className="text-sm text-gray-500">
+                                                GC: ₱{summary.gc || '0.00'}
+                                            </div>
+                                            <div className="text-sm font-medium text-gray-900">
+                                                Total: ₱{summary.totalPayments || '0.00'}
+                                            </div>
+                                        </td>
+                                        <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap hidden lg:table-cell">
+                                            <div className="text-sm text-gray-900">
+                                                Qty: {summary.regularQty}
+                                            </div>
+                                            <div className="text-sm text-gray-500">
+                                                Amt: ₱{summary.regularAmt}
+                                            </div>
+                                        </td>
+                                        <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap hidden lg:table-cell">
+                                            <div className="text-sm text-gray-900">
+                                                Qty: {summary.nonRegularQty}
+                                            </div>
+                                            <div className="text-sm text-gray-500">
+                                                Amt: ₱{summary.nonRegularAmt}
+                                            </div>
+                                        </td>
+                                        <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                                            <div className="text-sm font-medium text-gray-900">
+                                                Qty: {summary.totalQtySold}
+                                            </div>
+                                            <div className="text-sm text-gray-500">
+                                                Amt: ₱{summary.totalAmt}
+                                            </div>
+                                        </td>
+
+                                        <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-900 hidden sm:table-cell">
+                                            {summary.transactionCount || 'N/A'}
+                                        </td>
+                                        <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-900 hidden sm:table-cell">
+                                            {summary.headCount || 'N/A'}
+                                        </td>
+                                        <td className={`px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap sticky right-15 sm:right-20 border-l border-gray-200 z-10 group-hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${summary.amountsMatch
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-red-100 text-red-800'
+                                                }`}>
+                                                {summary.amountsMatch ? 'Matched' : 'Mismatched'}
+                                            </span>
+                                        </td>
+                                        <td className={`px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm font-medium sticky right-0 border-gray-200 z-10 group-hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                                            <Button
+                                                onClick={() => handleDelete(summary._id)}
+                                                variant="destructive"
+                                                size="sm"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {paginatedData.length === 0 && (
+                        <div className="text-center py-12">
+                            <p className="text-gray-500">No sales summaries found for the selected period.</p>
+                        </div>
+                    )}
+                </div>
+
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                />
+
+                <ConfirmationDialog />
+                <SuccessErrorModal
+                    open={notificationModalOpen}
+                    onOpenChange={setNotificationModalOpen}
+                    type={notificationType}
+                    title={notificationTitle}
+                    message={notificationMessage}
+                />
+            </div>
+        </div>
+    );
+}

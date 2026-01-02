@@ -116,14 +116,14 @@ export const getAllSalesSummaries = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Not authenticated");
+      return [];
     }
     const user = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .unique();
     if (!user || user.role !== "admin") {
-      throw new Error("Unauthorized: Admin access required");
+      return [];
     }
     return await ctx.db.query("userSalesSummaries").collect();
   },
@@ -148,5 +148,25 @@ export const getExistingPeriods = query({
       .withIndex("by_user", (q) => q.eq("userId", user._id))
       .collect();
     return summaries.map(s => s.period).filter(Boolean);
+  },
+});
+
+export const deleteSalesSummary = mutation({
+  args: {
+    id: v.id("userSalesSummaries"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (!user || user.role !== "admin") {
+      throw new Error("Unauthorized: Admin access required");
+    }
+    await ctx.db.delete(args.id);
   },
 });
