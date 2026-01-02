@@ -8,6 +8,7 @@ import { UserDashboard } from "../user/components/UserDashboard";
 import { WaitingForBranch } from "./WaitingForBranch";
 import { Loading } from "../../components/ui/loading";
 import { SalesSummaryReminderModal } from "./SalesSummaryReminderModal";
+import { useState, useEffect, useRef } from "react";
 
 export function SignedInContent() {
   const { user, isLoaded: clerkLoaded } = useUser();
@@ -22,6 +23,20 @@ export function SignedInContent() {
 }
 
 function UserWelcome({ user, currentUser }: { user: any, currentUser: any }) {
+  const [logsExpanded, setLogsExpanded] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setLogsExpanded(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const storeInfo = currentUser?.storeId && currentUser?.branch ? `${currentUser.storeId} ${currentUser.branch}` : '';
   const userName = user?.firstName || user?.username || 'User';
   const userRole = currentUser?.role === 'admin' ? 'Administrator' : 'User';
@@ -29,10 +44,15 @@ function UserWelcome({ user, currentUser }: { user: any, currentUser: any }) {
   // Get user's sales summaries to check if they saved today
   const userSalesSummaries = useQuery(api.userSalesSummaries.getUserSalesSummaries);
   
-  // Check if user has saved a sales summary today
-  const hasSavedToday = userSalesSummaries && userSalesSummaries.length > 0;
-  const lastSaveTime = hasSavedToday ? new Date(userSalesSummaries[userSalesSummaries.length - 1].createdAt) : null;
-  const isToday = lastSaveTime && lastSaveTime.toDateString() === new Date().toDateString();
+  // Find the most recent summary based on latest activity (updatedAt or createdAt)
+  const mostRecentSummary = userSalesSummaries && userSalesSummaries.length > 0 ? userSalesSummaries.reduce((latest, current) => {
+    const latestTime = latest.updatedAt || latest.createdAt;
+    const currentTime = current.updatedAt || current.createdAt;
+    return currentTime > latestTime ? current : latest;
+  }) : null;
+  
+  const lastActivityTime = mostRecentSummary ? new Date(mostRecentSummary.updatedAt || mostRecentSummary.createdAt) : null;
+  const isToday = lastActivityTime && lastActivityTime.toDateString() === new Date().toDateString();
 
   return (
     <div className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-gray-100 mb-8">
@@ -65,20 +85,55 @@ function UserWelcome({ user, currentUser }: { user: any, currentUser: any }) {
           </div>
         </div>
 
-        {currentUser?.role !== 'admin' && (isToday && lastSaveTime ? (
-          <div className="flex-shrink-0">
-            <div className="inline-flex items-center gap-2 bg-green-100 border border-green-300 rounded-full px-4 py-2 shadow-sm">
-              <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+        {currentUser?.role !== 'admin' && (isToday && lastActivityTime ? (
+          <div className="flex-shrink-0" ref={dropdownRef}>
+            <div className="relative">
+              <button
+                onClick={() => setLogsExpanded(!logsExpanded)}
+                className="inline-flex items-center gap-2 bg-green-100 border border-green-300 rounded-full px-4 py-2 shadow-sm hover:bg-green-200 transition-colors"
+              >
+                <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div className="text-green-800 font-medium text-sm">
+                  {mostRecentSummary?.updatedAt ? 'Sales Summary Updated Today' : 'Sales Summary Saved Today'}
+                </div>
+                <div className="text-green-600 text-xs">
+                  {mostRecentSummary?.updatedAt 
+                    ? new Date(mostRecentSummary.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : lastActivityTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  }
+                </div>
+                <svg className={`w-4 h-4 text-green-600 transition-transform ${logsExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
-              </div>
-              <div className="text-green-800 font-medium text-sm">
-                Sales Summary Saved Today
-              </div>
-              <div className="text-green-600 text-xs">
-                {lastSaveTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </div>
+              </button>
+              
+              {logsExpanded && mostRecentSummary && (
+                <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-10 min-w-64">
+                  <div className="text-xs font-medium text-gray-700 mb-2">Activity Logs</div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-xs text-gray-600">Created:</span>
+                      <span className="text-xs font-medium text-gray-900">
+                        {new Date(mostRecentSummary._creationTime).toLocaleDateString()} {new Date(mostRecentSummary._creationTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    {mostRecentSummary?.updatedAt && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span className="text-xs text-gray-600">Updated:</span>
+                        <span className="text-xs font-medium text-gray-900">
+                          {new Date(mostRecentSummary.updatedAt).toLocaleDateString()} {new Date(mostRecentSummary.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ) : currentUser?.role !== 'admin' && (

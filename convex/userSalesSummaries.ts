@@ -39,7 +39,14 @@ export const saveUserSalesSummary = mutation({
     if (!user) {
       throw new Error("User not found");
     }
-    await ctx.db.insert("userSalesSummaries", {
+    // Check if an entry already exists for the same user, storeId, branch, and period
+    const existing = await ctx.db
+      .query("userSalesSummaries")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .filter((q) => q.eq(q.field("storeId"), args.storeId) && q.eq(q.field("branch"), args.branch) && q.eq(q.field("period"), args.period))
+      .unique();
+
+    const data = {
       userId: user._id,
       branchCode: args.branchCode,
       period: args.period,
@@ -65,7 +72,21 @@ export const saveUserSalesSummary = mutation({
       transactionCount: args.transactionCount,
       headCount: args.headCount,
       createdAt: Date.now(),
-    });
+    };
+
+    if (existing) {
+      // Update existing entry
+      await ctx.db.patch(existing._id, {
+        ...data,
+        updatedAt: Date.now(),
+      });
+    } else {
+      // Insert new entry
+      await ctx.db.insert("userSalesSummaries", {
+        ...data,
+        createdAt: Date.now(),
+      });
+    }
   },
 });
 
@@ -105,5 +126,27 @@ export const getAllSalesSummaries = query({
       throw new Error("Unauthorized: Admin access required");
     }
     return await ctx.db.query("userSalesSummaries").collect();
+  },
+});
+
+export const getExistingPeriods = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (!user) {
+      throw new Error("User not found");
+    }
+    const summaries = await ctx.db
+      .query("userSalesSummaries")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    return summaries.map(s => s.period).filter(Boolean);
   },
 });

@@ -59,6 +59,7 @@ export default defineSchema({
     transactionCount: v.optional(v.number()),
     headCount: v.optional(v.number()),
     createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"]),
 });
