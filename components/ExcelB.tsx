@@ -56,7 +56,6 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
       // First pass: look for YYYY-MM-DD format anywhere in the file
       for (const row of allRows) {
         const rowText = row.map(cell => String(cell ?? '').trim()).join(' ');
-        console.log('ExcelB: checking row for YYYY-MM-DD:', JSON.stringify(rowText));
         const dateMatch = rowText.match(/^(\d{4}-\d{2}-\d{2})$/) || rowText.match(/^\s*(\d{4}-\d{2}-\d{2})\s*$/);
         if (dateMatch) {
           const dateStr = dateMatch[1];
@@ -65,7 +64,6 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
           const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
             'July', 'August', 'September', 'October', 'November', 'December'];
           extractedPeriod = `${monthNames[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
-          console.log('ExcelB: found and formatted date:', extractedPeriod);
           break;
         }
       }
@@ -74,17 +72,14 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
       if (!extractedPeriod) {
         for (const row of allRows) {
           const rowText = row.map(cell => String(cell ?? '').trim()).join(' ');
-          console.log('ExcelB: checking row for period text:', JSON.stringify(rowText));
           const periodMatch = rowText.match(/For the Period of (.+?) to (.+?)(?:\t|$)/);
           if (periodMatch) {
             extractedPeriod = periodMatch[1].trim();
-            console.log('ExcelB: found period text:', extractedPeriod);
             break;
           }
         }
       }
 
-      console.log('ExcelB: final extracted period:', extractedPeriod);
       setPeriod(extractedPeriod);
 
       // Check if period matches existing period from other file
@@ -121,7 +116,6 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
       const detectedBranch = branchRow.find(cell => typeof cell === 'string' && cell.trim());
 
       const branch = detectedBranch ? String(detectedBranch).trim() : null;
-      console.log('ExcelB: detected branch:', branch, 'existingBranchCode:', existingBranchCode);
       // If existingBranchCode is set and does not match, block upload
       if (existingBranchCode && branch && branch !== existingBranchCode) {
         const msg = `Branch mismatch: File 2 (${branch}) does not match File 3 (${existingBranchCode})`;

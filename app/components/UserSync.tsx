@@ -10,9 +10,7 @@ export function UserSync() {
   const createUser = useMutation(api.users.createUser);
 
   useEffect(() => {
-    console.log('UserSync - isLoaded:', isLoaded, 'user:', user);
     if (isLoaded && user) {
-      console.log('UserSync - Creating user for:', user.id);
       createUser({
         clerkId: user.id,
         email: user.primaryEmailAddress?.emailAddress || '',
