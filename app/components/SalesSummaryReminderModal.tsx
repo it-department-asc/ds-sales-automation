@@ -93,21 +93,12 @@ export function SalesSummaryReminderModal({ currentUser }: SalesSummaryReminderM
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 mt-6">
-          <Button
-            variant="outline"
-            onClick={() => setIsOpen(false)}
-            className="text-gray-600"
-          >
-            Remind Me Later
-          </Button>
-          <Button
-            onClick={() => setIsOpen(false)}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            Go to Dashboard
+        <div className="flex justify-end">
+          <Button onClick={() => setIsOpen(false)} variant="outline">
+            Got it
           </Button>
         </div>
+
       </DialogContent>
     </Dialog>
   );

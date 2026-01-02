@@ -157,9 +157,7 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
       if (clerkLoaded && clerkUser) {
         try {
           const token = await getToken({ template: "convex" });
-          console.log('JWT raw token:', token);
           setJwtToken(token ? "Token received" : "No token");
-          console.log('JWT Token available:', !!token);
         } catch (error) {
           console.error('JWT Token error:', error);
           setJwtToken("Token error");

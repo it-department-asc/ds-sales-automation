@@ -55,22 +55,17 @@ export const createUser = mutation({
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
-    console.log('getCurrentUser - Getting user identity...');
     const identity = await ctx.auth.getUserIdentity();
-    console.log('getCurrentUser - Identity:', identity);
 
     if (!identity) {
-      console.log('getCurrentUser - No identity found');
       return null;
     }
 
-    console.log('getCurrentUser - Looking for user with clerkId:', identity.subject);
     const user = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
 
-    console.log('getCurrentUser - Found user:', user);
     return user;
   },
 });

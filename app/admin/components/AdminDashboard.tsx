@@ -8,6 +8,7 @@ import { EditUserModal } from "./EditUserModal";
 import { TableFilters } from "./TableFilters";
 import { TextHighlight } from "./TextHighlight";
 import { EmptyState } from "./EmptyState";
+import { useToast } from "@/hooks/use-toast";
 import { Id } from "../../../convex/_generated/dataModel";
 import { Users, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -15,6 +16,7 @@ export function AdminDashboard() {
     const allUsers = useQuery(api.users.getAllUsers);
     const allSalesSummaries = useQuery(api.userSalesSummaries.getAllSalesSummaries);
     const [editingUserId, setEditingUserId] = useState<Id<"users"> | null>(null);
+    const { toast } = useToast();
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
@@ -113,8 +115,11 @@ export function AdminDashboard() {
     };
 
     const handleSuccess = () => {
-        // Optional: refresh data or show toast notification
-        console.log('User updated successfully');
+        // Show success toast notification
+        toast({
+            title: "User updated successfully",
+            description: "The user information has been saved.",
+        });
     };
 
     const handleClearFilters = () => {

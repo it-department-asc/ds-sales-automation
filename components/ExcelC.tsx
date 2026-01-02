@@ -67,7 +67,6 @@ const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clear
           const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
             'July', 'August', 'September', 'October', 'November', 'December'];
           extractedPeriod = `${monthNames[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
-          console.log('ExcelC: found and formatted date:', extractedPeriod);
           break;
         }
       }
@@ -140,7 +139,6 @@ const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clear
       }
 
       const branch = detectedBranch || null;
-      console.log('ExcelC: detected branch:', branch, 'existingBranchCode:', existingBranchCode);
       // Check if branch matches user's assigned branch
       const userStoreInfo = currentUser?.storeId && currentUser?.branch ? `${currentUser.storeId} ${currentUser.branch}` : null;
       if (userStoreInfo && branch && branch !== userStoreInfo) {

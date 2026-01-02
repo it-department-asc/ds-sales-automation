@@ -55,7 +55,6 @@ export function AdminUserForm({ user, onSave }: AdminUserFormProps) {
   });
 
   const onSubmit = (data: UserFormData) => {
-    console.log('Submitting form data:', data);
     updateUser({
       userId: user._id as any,
       ...data,
