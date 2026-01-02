@@ -63,7 +63,7 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
           // Format the date as "Month DD, YYYY"
           const date = new Date(dateStr + 'T00:00:00');
           const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                            'July', 'August', 'September', 'October', 'November', 'December'];
+            'July', 'August', 'September', 'October', 'November', 'December'];
           extractedPeriod = `${monthNames[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
           console.log('ExcelB: found and formatted date:', extractedPeriod);
           break;
@@ -147,7 +147,7 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
         handleClear();
         setExcelBHeaders([]);
         setExcelBRows([]);
-        setBranchCode(null);        setPeriod(null); // Clear period on branch assignment error        setError(msg);
+        setBranchCode(null); setPeriod(null); // Clear period on branch assignment error        setError(msg);
         if (fileInputRef.current) fileInputRef.current.value = '';
         if (onBranchCode) onBranchCode(null);
         toast({
@@ -212,7 +212,7 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
       setFileName(file.name);
       setError(null);
       if (onData) onData({ headers: mergedHeaders, rows: mergedRows, period: extractedPeriod || undefined });
-      
+
       // Reset file input to allow re-uploading the same file
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
@@ -249,11 +249,10 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
       {fileName && (
         <div className="mb-4 text-left">
           File Uploaded:{" "}
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-sm ${
-            excelBRows.some(row => row[excelBHeaders.length - 1] === 'Not Found')
-              ? 'bg-red-100 text-red-800'
-              : 'bg-green-100 text-green-800'
-          }`}>
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-sm ${excelBRows.some(row => row[excelBHeaders.length - 1] === 'Not Found')
+            ? 'bg-red-100 text-red-800'
+            : 'bg-green-100 text-green-800'
+            }`}>
             📄 {fileName}
             <button
               onClick={handleClear}
@@ -268,11 +267,10 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
         </div>
       )}
       <div
-        className={`flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 mb-4 transition ${
-          hasProductData
-            ? 'border-blue-400 bg-blue-50 hover:bg-blue-100 cursor-pointer'
-            : 'border-gray-300 bg-gray-50 cursor-not-allowed opacity-50'
-        }`}
+        className={`flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 mb-4 transition ${hasProductData
+          ? 'border-blue-400 bg-blue-50 hover:bg-blue-100 cursor-pointer'
+          : 'border-gray-300 bg-gray-50 cursor-not-allowed opacity-50'
+          }`}
         onClick={hasProductData ? () => fileInputRef.current?.click() : undefined}
         onDrop={hasProductData ? handleDrop : undefined}
         onDragOver={hasProductData ? handleDragOver : undefined}
@@ -294,25 +292,33 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
       </div>
       {error && <div className="text-red-600 font-medium mb-4 text-center">{error}</div>}
       {excelBRows.length > 0 && (
-        <div className="overflow-x-auto mt-6 border rounded-lg bg-gray-50 max-h-[32rem]" style={{maxHeight:'32rem', minWidth:'100%'}}>
-          <table className="min-w-[72rem] w-full text-sm text-left">
-            <thead>
-              <tr>
-                {excelBHeaders.map((header, idx) => (
-                  <th key={idx} className="px-4 py-2 border-b font-bold bg-gray-100 text-base">{header}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {excelBRows.map((row, idx) => (
-                <tr key={idx}>
-                  {excelBHeaders.map((_, colIdx) => (
-                    <td key={colIdx} className="px-4 py-2 border-b text-base">{row[colIdx] ?? '-'}</td>
+        <div className="mt-6">
+          {/* Mobile scroll indicator */}
+          <div className="block sm:hidden mb-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-xs text-blue-700 text-center">
+              ← Swipe to scroll horizontally →
+            </p>
+          </div>
+          <div className="overflow-x-auto border rounded-lg bg-gray-50 max-h-[32rem]" style={{ maxHeight: '32rem' }}>
+            <table className="min-w-[72rem] w-full text-xs sm:text-sm text-left">
+              <thead>
+                <tr>
+                  {excelBHeaders.map((header, idx) => (
+                    <th key={idx} className="px-2 sm:px-4 py-2 border-b font-bold bg-gray-100 text-xs sm:text-base sticky top-0 z-10">{header}</th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {excelBRows.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50">
+                    {excelBHeaders.map((_, colIdx) => (
+                      <td key={colIdx} className="px-2 sm:px-4 py-2 border-b text-xs sm:text-base break-words max-w-[120px] sm:max-w-none">{row[colIdx] ?? '-'}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

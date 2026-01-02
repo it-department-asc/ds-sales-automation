@@ -10,7 +10,6 @@ async function setupAdminUser() {
   try {
     console.log("Setting up admin user...");
 
-    // You'll need to replace these with your actual Clerk user details
     const clerkId = "user_372adEWROdQuJunogShuMiKs6ka"; // Replace with your actual Clerk user ID
     const email = "itdepartment@albertogroup.com.ph"; // Replace with your actual email
     const firstName = "ALBERTO IT ADMIN"; // Replace with your actual name

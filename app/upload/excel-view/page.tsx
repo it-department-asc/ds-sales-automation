@@ -9,6 +9,7 @@ import { Loading } from "../../../components/ui/loading";
 import { AccessDenied } from "../../../components/ui/access-denied";
 import { Button } from "../../../components/ui/button";
 import { Trash2, FileText } from "lucide-react";
+import { useConfirm } from "../../../hooks/use-confirm";
 
 const ExcelA = dynamic(() => import("../../../components/ExcelA"));
 
@@ -18,6 +19,8 @@ export default function ExcelViewPage() {
   const currentUser = useQuery(api.users.getCurrentUser);
   const uploadedData = useQuery(api.uploadedData.getUploadedData);
   const deleteData = useMutation(api.uploadedData.deleteUploadedData);
+
+  const [ConfirmationDialog, confirm] = useConfirm("Delete File", "Are you sure you want to delete this uploaded file?");
 
   const localDateString = localData ? (() => {
     const saveDate = new Date(localData.date);
@@ -44,7 +47,8 @@ export default function ExcelViewPage() {
   }, []);
 
   const handleDelete = async (fileId: string) => {
-    if (confirm("Are you sure you want to delete this uploaded file?")) {
+    const confirmed = await confirm();
+    if (confirmed) {
       try {
         await deleteData({ fileId });
       } catch (error) {
@@ -53,9 +57,12 @@ export default function ExcelViewPage() {
     }
   };
 
-  const handleDeleteLocal = () => {
-    localStorage.removeItem("uploadedData");
-    setLocalData(null);
+  const handleDeleteLocal = async () => {
+    const confirmed = await confirm();
+    if (confirmed) {
+      localStorage.removeItem("uploadedData");
+      setLocalData(null);
+    }
   };
 
   if (currentUser === undefined || currentUser === null) {
@@ -67,8 +74,10 @@ export default function ExcelViewPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-6 text-center">Excel/CSV File Upload</h1>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <div className="container mx-auto p-6 max-w-4xl">
+      <h1 className="text-3xl font-bold mb-2 text-center">Excel/CSV File Upload</h1>
+      <p className="text-gray-600 text-center mb-6">Upload and manage product data files for sales processing</p>
 
       <ExcelA />
 
@@ -125,6 +134,9 @@ export default function ExcelViewPage() {
           <p className="text-gray-500">No files saved yet.</p>
         )}
       </div>
+
+      <ConfirmationDialog />
+    </div>
     </div>
   );
 }

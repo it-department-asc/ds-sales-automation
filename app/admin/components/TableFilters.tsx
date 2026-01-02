@@ -33,8 +33,8 @@ export function TableFilters({
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4">
       {/* Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-        <div className="relative flex-1 min-w-0">
+      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
@@ -45,34 +45,35 @@ export function TableFilters({
           />
         </div>
 
-        {/* Filter Toggle Button */}
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg transition ${
-            showFilters
-              ? 'bg-blue-50 border-blue-200 text-blue-700'
-              : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-          }`}
-        >
-          <Filter className="h-4 w-4" />
-          Filters
-          {hasActiveFilters && (
-            <span className="ml-1 bg-blue-600 text-white text-xs rounded-full px-2 py-0.5">
-              {[searchTerm, roleFilter, statusFilter, salesSummaryFilter].filter(Boolean).length}
-            </span>
-          )}
-        </button>
-
-        {/* Clear Filters Button */}
-        {hasActiveFilters && (
+        {/* Filter Buttons Row */}
+        <div className="flex flex-wrap gap-2 items-center">
           <button
-            onClick={onClearFilters}
-            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-50 border border-gray-300 rounded-lg transition"
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg transition whitespace-nowrap ${
+              showFilters
+                ? 'bg-blue-50 border-blue-200 text-blue-700'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
           >
-            <X className="h-4 w-4" />
-            Clear
+            <Filter className="h-4 w-4" />
+            Filters
+            {hasActiveFilters && (
+              <span className="ml-1 bg-blue-600 text-white text-xs rounded-full px-2 py-0.5">
+                {[searchTerm, roleFilter, statusFilter, salesSummaryFilter].filter(Boolean).length}
+              </span>
+            )}
           </button>
-        )}
+
+          {hasActiveFilters && (
+            <button
+              onClick={onClearFilters}
+              className="flex items-center gap-2 px-4 py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-50 border border-gray-300 rounded-lg transition whitespace-nowrap"
+            >
+              <X className="h-4 w-4" />
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filter Options */}

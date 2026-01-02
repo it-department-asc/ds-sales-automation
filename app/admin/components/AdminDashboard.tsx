@@ -9,8 +9,7 @@ import { TableFilters } from "./TableFilters";
 import { TextHighlight } from "./TextHighlight";
 import { EmptyState } from "./EmptyState";
 import { Id } from "../../../convex/_generated/dataModel";
-import { Users, Download } from "lucide-react";
-import * as XLSX from 'xlsx';
+import { Users, ChevronLeft, ChevronRight } from "lucide-react";
 
 export function AdminDashboard() {
     const allUsers = useQuery(api.users.getAllUsers);
@@ -22,6 +21,10 @@ export function AdminDashboard() {
     const [roleFilter, setRoleFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [salesSummaryFilter, setSalesSummaryFilter] = useState('');
+
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
 
     // Create mapping of user IDs to their latest sales summary
     const userSalesSummaryMap = useMemo(() => {
@@ -88,6 +91,19 @@ export function AdminDashboard() {
         });
     }, [allUsers, searchTerm, roleFilter, statusFilter, salesSummaryFilter, userSalesSummaryMap]);
 
+    // Pagination logic
+    const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+    const paginatedUsers = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return filteredUsers.slice(startIndex, endIndex);
+    }, [filteredUsers, currentPage, itemsPerPage]);
+
+    // Reset to first page when filters change
+    useMemo(() => {
+        setCurrentPage(1);
+    }, [searchTerm, roleFilter, statusFilter, salesSummaryFilter]);
+
     const handleEdit = (userId: Id<"users">) => {
         setEditingUserId(userId);
     };
@@ -106,77 +122,6 @@ export function AdminDashboard() {
         setRoleFilter('');
         setStatusFilter('');
         setSalesSummaryFilter('');
-    };
-
-    const handleGenerateReport = () => {
-        if (!allSalesSummaries || allSalesSummaries.length === 0) {
-            alert('No sales summary data available to generate report.');
-            return;
-        }
-
-        // Prepare data in the specified column order
-        const reportData = allSalesSummaries.map(summary => ({
-            'Store ID': summary.storeId || '',
-            'Branch': summary.branch || '',
-            'Region': summary.region || '',
-            'Province': summary.province || '',
-            'City': summary.city || '',
-            'Lessor': summary.lessor || '',
-            'Mall Name': summary.mallName || '',
-            'Cash/Check': summary.cashCheck || '',
-            'Charge': summary.charge || '',
-            'GC': summary.gc || '',
-            'Credit Note': summary.creditNote || '',
-            'Total Payments': summary.totalPayments || '',
-            'Regular Qty': summary.regularQty,
-            'Regular Amt': summary.regularAmt,
-            'Non-Regular Qty': summary.nonRegularQty,
-            'Non-Regular Amt': summary.nonRegularAmt,
-            'Total Qty Sold': summary.totalQtySold,
-            'Total Amt': summary.totalAmt,
-            'Transaction Count': summary.transactionCount || '',
-            'Head Count': summary.headCount || '',
-        }));
-
-        // Create workbook and worksheet
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(reportData);
-
-        // Auto-size columns
-        const colWidths = [
-            { wch: 12 }, // Store ID
-            { wch: 15 }, // Branch
-            { wch: 12 }, // Region
-            { wch: 15 }, // Province
-            { wch: 15 }, // City
-            { wch: 15 }, // Lessor
-            { wch: 20 }, // Mall Name
-            { wch: 12 }, // Cash/Check
-            { wch: 10 }, // Charge
-            { wch: 8 },  // GC
-            { wch: 12 }, // Credit Note
-            { wch: 15 }, // Total Payments
-            { wch: 12 }, // Regular Qty
-            { wch: 12 }, // Regular Amt
-            { wch: 15 }, // Non-Regular Qty
-            { wch: 15 }, // Non-Regular Amt
-            { wch: 15 }, // Total Qty Sold
-            { wch: 12 }, // Total Amt
-            { wch: 18 }, // Transaction Count
-            { wch: 12 }, // Head Count
-        ];
-        ws['!cols'] = colWidths;
-
-        // Add worksheet to workbook
-        XLSX.utils.book_append_sheet(wb, ws, 'Sales Report');
-
-        // Generate filename with current date
-        const now = new Date();
-        const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD format
-        const filename = `sales_report_${dateStr}.xlsx`;
-
-        // Save file
-        XLSX.writeFile(wb, filename);
     };
 
     return (
@@ -198,37 +143,19 @@ export function AdminDashboard() {
                             <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold">
                                 {filteredUsers?.length || 0}
                             </span>
-                            <button
-                                onClick={handleGenerateReport}
-                                className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled={!allSalesSummaries || allSalesSummaries.length === 0}
-                            >
-                                <Download className="h-3 w-3 mr-1" />
-                                Report
-                            </button>
                         </div>
                     </div>
                     {/* Desktop count */}
                     <div className="hidden sm:block">
-                        <div className="flex items-center space-x-4">
-                            <div className="flex items-center space-x-2 text-sm">
-                                <span className="text-gray-500">Total:</span>
-                                <span className="font-semibold text-gray-900">{filteredUsers?.length || 0}</span>
-                                <span className="text-gray-500">users</span>
-                                {filteredUsers?.length !== allUsers?.length && (
-                                    <span className="text-gray-400 text-xs">
-                                        (filtered from {allUsers?.length || 0})
-                                    </span>
-                                )}
-                            </div>
-                            <button
-                                onClick={handleGenerateReport}
-                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled={!allSalesSummaries || allSalesSummaries.length === 0}
-                            >
-                                <Download className="h-4 w-4 mr-2" />
-                                Generate Report
-                            </button>
+                        <div className="flex items-center space-x-2 text-sm">
+                            <span className="text-gray-500">Total:</span>
+                            <span className="font-semibold text-gray-900">{filteredUsers?.length || 0}</span>
+                            <span className="text-gray-500">users</span>
+                            {filteredUsers?.length !== allUsers?.length && (
+                                <span className="text-gray-400 text-xs">
+                                    (filtered from {allUsers?.length || 0})
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -250,7 +177,7 @@ export function AdminDashboard() {
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                        <thead className="bg-gray-200">
                             <tr>
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
@@ -264,7 +191,7 @@ export function AdminDashboard() {
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">City</th>
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Lessor</th>
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Mall Name</th>
-                                <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-0 bg-gray-50 border-l border-gray-200">Actions</th>
+                                <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-0 bg-gray-200 border-l border-gray-200">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
@@ -279,9 +206,9 @@ export function AdminDashboard() {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredUsers?.map((user) => (
-                                    <tr key={user._id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => handleEdit(user._id)}>
-                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap">
+                                paginatedUsers?.map((user, index) => (
+                                    <tr key={user._id} className="hover:bg-gray-50 even:bg-gray-50 transition-colors cursor-pointer group" onClick={() => handleEdit(user._id)}>
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-left">
                                             <div className="flex items-center">
                                                 <div className="flex-shrink-0 h-8 w-8 bg-gray-200 rounded-full flex items-center justify-center">
                                                     <span className="text-sm font-medium text-gray-600">
@@ -298,10 +225,10 @@ export function AdminDashboard() {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 text-left">
                                             <TextHighlight text={user.email || ''} searchTerm={searchTerm} />
                                         </td>
-                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap">
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-left">
                                             <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${user.role === 'admin'
                                                 ? 'bg-purple-100 text-purple-800'
                                                 : 'bg-gray-100 text-gray-800'
@@ -309,7 +236,7 @@ export function AdminDashboard() {
                                                 {user.role}
                                             </span>
                                         </td>
-                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap">
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-left">
                                             <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${user.status === 'active'
                                                 ? 'bg-green-100 text-green-800'
                                                 : 'bg-red-100 text-red-800'
@@ -317,7 +244,7 @@ export function AdminDashboard() {
                                                 {user.status}
                                             </span>
                                         </td>
-                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap">
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-left">
                                             {(() => {
                                                 const userSummary = userSalesSummaryMap.get(user._id);
                                                 const hasSubmittedToday = userSummary && isTodayPhilippineTime(new Date(userSummary.createdAt));
@@ -350,28 +277,28 @@ export function AdminDashboard() {
                                                 }
                                             })()}
                                         </td>
-                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell text-left">
                                             <TextHighlight text={user.storeId || '-'} searchTerm={searchTerm} />
                                         </td>
-                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell text-left">
                                             <TextHighlight text={user.branch || '-'} searchTerm={searchTerm} />
                                         </td>
-                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell text-left">
                                             <TextHighlight text={user.region || '-'} searchTerm={searchTerm} />
                                         </td>
-                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell text-left">
                                             <TextHighlight text={user.province || '-'} searchTerm={searchTerm} />
                                         </td>
-                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell text-left">
                                             <TextHighlight text={user.city || '-'} searchTerm={searchTerm} />
                                         </td>
-                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell text-left">
                                             <TextHighlight text={user.lessor || '-'} searchTerm={searchTerm} />
                                         </td>
-                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell text-left">
                                             <TextHighlight text={user.mallName || '-'} searchTerm={searchTerm} />
                                         </td>
-                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm sticky right-0 bg-white border-l border-gray-200" onClick={(e) => e.stopPropagation()}>
+                                        <td className={`px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm sticky right-0 border-l border-gray-200 text-left ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} group-hover:bg-gray-50`} onClick={(e) => e.stopPropagation()}>
                                             <UserActionsMenu
                                                 user={{ ...user, status: user.status || "active" }}
                                                 onEdit={() => handleEdit(user._id)}
@@ -383,6 +310,58 @@ export function AdminDashboard() {
                     </table>
                 </div>
             </div>
+
+            {/* Pagination */}
+            {filteredUsers.length > itemsPerPage && (
+                <div className="mt-4 flex items-center justify-between">
+                    <div className="text-sm text-gray-500">
+                        Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredUsers.length)} of {filteredUsers.length} users
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <ChevronLeft className="h-4 w-4 mr-1" />
+                            Previous
+                        </button>
+
+                        <div className="flex items-center space-x-1">
+                            {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                .filter(page => {
+                                    const distance = Math.abs(page - currentPage);
+                                    return distance === 0 || distance === 1 || page === 1 || page === totalPages;
+                                })
+                                .map((page, idx, arr) => (
+                                    <div key={page} className="flex items-center">
+                                        {idx > 0 && arr[idx - 1] !== page - 1 && (
+                                            <span className="px-2 text-gray-400">...</span>
+                                        )}
+                                        <button
+                                            onClick={() => setCurrentPage(page)}
+                                            className={`px-3 py-2 text-sm font-medium rounded-md ${currentPage === page
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                                                }`}
+                                        >
+                                            {page}
+                                        </button>
+                                    </div>
+                                ))}
+                        </div>
+
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                            className="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Next
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Edit Modal */}
             <EditUserModal
