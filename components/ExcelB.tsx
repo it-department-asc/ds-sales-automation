@@ -89,6 +89,7 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
 
       // Check if period matches existing period from other file
       if (existingPeriod && extractedPeriod && extractedPeriod !== existingPeriod) {
+        handleClear();
         setError(`Period mismatch: This file is for "${extractedPeriod}" but the other file is for "${existingPeriod}". Please ensure both files are for the same date period.`);
         setExcelBHeaders([]);
         setExcelBRows([]);
@@ -124,6 +125,7 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
       // If existingBranchCode is set and does not match, block upload
       if (existingBranchCode && branch && branch !== existingBranchCode) {
         const msg = `Branch mismatch: File 2 (${branch}) does not match File 3 (${existingBranchCode})`;
+        handleClear();
         setExcelBHeaders([]);
         setExcelBRows([]);
         setBranchCode(null);
@@ -142,6 +144,7 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
       const userStoreInfo = currentUser?.storeId && currentUser?.branch ? `${currentUser.storeId} ${currentUser.branch}` : null;
       if (userStoreInfo && branch && branch !== userStoreInfo) {
         const msg = `You are not assigned to this branch. Your assigned branch is ${userStoreInfo}, but the file is for ${branch}.`;
+        handleClear();
         setExcelBHeaders([]);
         setExcelBRows([]);
         setBranchCode(null);        setPeriod(null); // Clear period on branch assignment error        setError(msg);

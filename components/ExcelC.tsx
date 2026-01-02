@@ -87,6 +87,7 @@ const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clear
 
       // Check if period matches existing period from other file
       if (existingPeriod && extractedPeriod && extractedPeriod !== existingPeriod) {
+        handleClear();
         setError(`Period mismatch: This file is for "${extractedPeriod}" but the other file is for "${existingPeriod}". Please ensure both files are for the same date period.`);
         setHeaders([]);
         setRows([]);

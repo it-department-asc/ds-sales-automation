@@ -8,6 +8,7 @@ import { ExcelBranchCompare } from "../../../components/ExcelBranchCompare";
 import { ValidationErrorModal } from "../../../components/ValidationErrorModal";
 import { SuccessErrorModal } from "../../../components/SuccessErrorModal";
 import { SalesSummaryReminderModal } from "../../components/SalesSummaryReminderModal";
+import { ExistingPeriodsConfirmDialog } from "../../../components/ExistingPeriodsConfirmDialog";
 
 
 export function UserDashboard({ currentUser }: { currentUser: any }) {
@@ -17,6 +18,8 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
   const uploadedData = useQuery(api.uploadedData.getUploadedData);
   const latestAdminProductFile = useQuery(api.uploadedData.getLatestAdminProductFile);
   const saveSalesSummary = useMutation(api.userSalesSummaries.saveUserSalesSummary);
+  const existingPeriods = useQuery(api.userSalesSummaries.getExistingPeriods);
+  const existingPeriodsList = (existingPeriods || []).filter(Boolean) as string[];
 
   // Load admin data in chunks
   const [adminDataChunks, setAdminDataChunks] = useState<any[]>([]);
@@ -73,6 +76,35 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
   const [notificationTitle, setNotificationTitle] = useState<string>('');
   const [notificationMessage, setNotificationMessage] = useState<string>('');
   const [clearTrigger, setClearTrigger] = useState<number>(0);
+  const [pendingSaveData, setPendingSaveData] = useState<any>(null);
+  const [existingPeriodsDialogOpen, setExistingPeriodsDialogOpen] = useState<boolean>(false);
+
+  const performSave = async (saveData: any) => {
+    try {
+      await saveSalesSummary(saveData);
+      // Reset data
+      setExcelBData(null);
+      setExcelCData(null);
+      setBranchCode(null);
+      setTransactionCount(undefined);
+      setHeadCount(undefined);
+      setHasValidationErrors(false);
+      setClearTrigger(prev => prev + 1);
+
+      // Show success modal
+      setNotificationType('success');
+      setNotificationTitle('Success!');
+      setNotificationMessage('Sales summary saved successfully!');
+      setNotificationModalOpen(true);
+    } catch (error) {
+      console.error('Error saving sales summary:', error);
+      // Show error modal
+      setNotificationType('error');
+      setNotificationTitle('Error');
+      setNotificationMessage('Failed to save sales summary. Please try again.');
+      setNotificationModalOpen(true);
+    }
+  };
 
   // Validate ExcelB data for "Not Found" entries
   useEffect(() => {
@@ -405,16 +437,42 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
               </div>
             </div>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-8 text-left">
+            <div className="bg-gradient-to-br from-white to-amber-50 border border-amber-200/60 rounded-lg p-4 mb-8 text-left shadow-sm">
               <div className="flex items-start gap-3">
-                <div className="w-5 h-5 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center shadow-sm">
+                    <svg className="w-4 h-4 text-amber-700" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-amber-800 font-medium">Important Note</p>
-                  <p className="text-sm text-amber-700 mt-1">If you re-upload your Excel files, please re-enter the total transaction count and head count for that day. These values are not automatically preserved during re-uploads.</p>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                        Note
+                      </h4>
+                      <p className="text-sm text-gray-700 mt-1 leading-relaxed">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse mr-2"></span>
+                        When re-uploading Excel files, you must <strong className="font-semibold text-amber-700">manually re-enter Transaction Count and Head Count</strong>. These values reset with new uploads.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center text-xs text-gray-600 gap-2">
+                    <span className="px-2 py-1 bg-amber-100/50 text-amber-700 rounded border border-amber-200">
+                      Step 1: Upload Excel(Item Sales & Post Collection Reports)
+                    </span>
+                    <span className="text-gray-400">→</span>
+                    <span className="px-2 py-1 bg-amber-100/50 text-amber-700 rounded border border-amber-200">
+                      Step 2: Enter Transaction & Head Counts
+                    </span>
+                    <span className="text-gray-400">→</span>
+                    <span className="px-2 py-1 bg-amber-100/50 text-amber-700 rounded border border-amber-200">
+                      Step 3: Save
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -422,12 +480,13 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
             <div className="text-center">
               <button
                 className={`inline-flex items-center px-10 py-4 rounded-xl font-semibold text-lg transition-all duration-300 transform ${excelBData && excelCData && branchCode && transactionCount !== undefined && headCount !== undefined && !hasValidationErrors
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl hover:scale-105 active:scale-95'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-sm'
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl hover:scale-105 active:scale-95'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-sm'
                   }`}
                 disabled={!(excelBData && excelCData && branchCode && transactionCount !== undefined && headCount !== undefined && !hasValidationErrors)}
                 onClick={async () => {
                   if (!excelBData) return;
+
                   // Aggregate data from excelBData
                   const { headers: bHeaders, rows: bRows } = excelBData;
                   const saleStatusIdx = bHeaders.findIndex(h => h.toLowerCase() === 'sale_status');
@@ -486,54 +545,44 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
                   const totalPayments = cashCheck + charge + gc + creditNote;
                   const amountsMatch = Math.abs(totalAmt - totalPayments) < 0.01; // floating point comparison
 
-                  try {
-                    await saveSalesSummary({
-                      branchCode: branchCode!,
-                      period: excelBData?.period || excelCData?.period, // Use period from Excel files
-                      regularQty,
-                      regularAmt,
-                      nonRegularQty,
-                      nonRegularAmt,
-                      totalQtySold,
-                      totalAmt,
-                      cashCheck,
-                      charge,
-                      gc,
-                      creditNote,
-                      totalPayments,
-                      amountsMatch,
-                      storeId: currentUser?.storeId,
-                      branch: currentUser?.branch,
-                      region: currentUser?.region,
-                      province: currentUser?.province,
-                      city: currentUser?.city,
-                      lessor: currentUser?.lessor,
-                      mallName: currentUser?.mallName,
-                      transactionCount,
-                      headCount,
-                    });
-                    // Reset data
-                    setExcelBData(null);
-                    setExcelCData(null);
-                    setBranchCode(null);
-                    setTransactionCount(undefined);
-                    setHeadCount(undefined);
-                    setHasValidationErrors(false);
-                    setClearTrigger(prev => prev + 1);
+                  const period = excelBData?.period || excelCData?.period;
+                  const existingPeriodsList = existingPeriods || [];
 
-                    // Show success modal
-                    setNotificationType('success');
-                    setNotificationTitle('Success!');
-                    setNotificationMessage('Sales summary saved successfully!');
-                    setNotificationModalOpen(true);
-                  } catch (error) {
-                    console.error('Error saving sales summary:', error);
-                    // Show error modal
-                    setNotificationType('error');
-                    setNotificationTitle('Error');
-                    setNotificationMessage('Failed to save sales summary. Please try again.');
-                    setNotificationModalOpen(true);
+                  const saveData = {
+                    branchCode: branchCode!,
+                    period,
+                    regularQty,
+                    regularAmt,
+                    nonRegularQty,
+                    nonRegularAmt,
+                    totalQtySold,
+                    totalAmt,
+                    cashCheck,
+                    charge,
+                    gc,
+                    creditNote,
+                    totalPayments,
+                    amountsMatch,
+                    storeId: currentUser?.storeId,
+                    branch: currentUser?.branch,
+                    region: currentUser?.region,
+                    province: currentUser?.province,
+                    city: currentUser?.city,
+                    lessor: currentUser?.lessor,
+                    mallName: currentUser?.mallName,
+                    transactionCount,
+                    headCount,
+                  };
+
+                  if (period && existingPeriodsList.includes(period)) {
+                    // Show confirmation dialog
+                    setExistingPeriodsDialogOpen(true);
+                    setPendingSaveData(saveData);
+                    return;
                   }
+
+                  // Proceed to save
+                  await performSave(saveData);
                 }}
               >
                 <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -560,6 +609,21 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
         />
 
         <SalesSummaryReminderModal currentUser={currentUser} />
+
+        <ExistingPeriodsConfirmDialog
+          open={existingPeriodsDialogOpen}
+          onOpenChange={setExistingPeriodsDialogOpen}
+          existingPeriods={existingPeriodsList}
+          onConfirm={async () => {
+            if (pendingSaveData) {
+              await performSave(pendingSaveData);
+              setPendingSaveData(null);
+            }
+          }}
+          onCancel={() => {
+            setPendingSaveData(null);
+          }}
+        />
       </div>
     );
   }
