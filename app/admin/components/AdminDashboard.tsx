@@ -117,8 +117,9 @@ export function AdminDashboard() {
     const handleSuccess = () => {
         // Show success toast notification
         toast({
-            title: "User updated successfully",
+            title: "✅ User updated successfully",
             description: "The user information has been saved.",
+            className: "border-green-200 bg-green-50 text-green-900"
         });
     };
 
