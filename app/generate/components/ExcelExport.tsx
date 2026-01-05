@@ -82,8 +82,64 @@ export function ExcelExport({ data, disabled }: ExcelExportProps) {
                 'Head Count': summary.headCount || '',
             }));
 
+            // Calculate total sums for the period
+            const totalSums = summaries.reduce((acc, summary) => {
+                const cleanNumber = (value: any) => parseFloat((value?.toString() || '0').replace(/,/g, '')) || 0;
+                acc.cashCheck += cleanNumber(summary.cashCheck);
+                acc.charge += cleanNumber(summary.charge);
+                acc.gc += cleanNumber(summary.gc);
+                acc.creditNote += cleanNumber(summary.creditNote);
+                acc.totalPayments += cleanNumber(summary.totalPayments);
+                acc.regularQty += summary.regularQty || 0;
+                acc.regularAmt += cleanNumber(summary.regularAmt);
+                acc.nonRegularQty += summary.nonRegularQty || 0;
+                acc.nonRegularAmt += cleanNumber(summary.nonRegularAmt);
+                acc.totalQtySold += summary.totalQtySold || 0;
+                acc.totalAmt += cleanNumber(summary.totalAmt);
+                acc.transactionCount += summary.transactionCount || 0;
+                acc.headCount += summary.headCount || 0;
+                return acc;
+            }, {
+                cashCheck: 0,
+                charge: 0,
+                gc: 0,
+                creditNote: 0,
+                totalPayments: 0,
+                regularQty: 0,
+                regularAmt: 0,
+                nonRegularQty: 0,
+                nonRegularAmt: 0,
+                totalQtySold: 0,
+                totalAmt: 0,
+                transactionCount: 0,
+                headCount: 0,
+            });
+
+            // Create subtotal row
+            const formatNumber = (num: number) => num.toLocaleString('en-US');
+            const subtotalRow = {
+                'Store ID': '',
+                'Branch': 'SUBTOTAL -  ALBERTO STAND ALONE',
+                'Cash/Check': formatNumber(totalSums.cashCheck),
+                'Charge': formatNumber(totalSums.charge),
+                'GC': formatNumber(totalSums.gc),
+                'Credit Note': formatNumber(totalSums.creditNote),
+                'Total Payments': formatNumber(totalSums.totalPayments),
+                'Regular Qty': formatNumber(totalSums.regularQty),
+                'Regular Amt': formatNumber(totalSums.regularAmt),
+                'Non-Regular Qty': formatNumber(totalSums.nonRegularQty),
+                'Non-Regular Amt': formatNumber(totalSums.nonRegularAmt),
+                'Total Qty Sold': formatNumber(totalSums.totalQtySold),
+                'Total Amt': formatNumber(totalSums.totalAmt),
+                'Transaction Count': formatNumber(totalSums.transactionCount),
+                'Head Count': formatNumber(totalSums.headCount),
+            };
+
+            // Add subtotal row to report data
+            const fullReportData = [...reportData, subtotalRow];
+
             // Create worksheet
-            const ws = XLSX.utils.json_to_sheet(reportData);
+            const ws = XLSX.utils.json_to_sheet(fullReportData);
 
             // Auto-size columns
             const colWidths = [

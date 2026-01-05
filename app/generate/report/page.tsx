@@ -11,13 +11,17 @@ import { useConfirm } from "../../../hooks/use-confirm";
 import { SuccessErrorModal } from "../../../components/SuccessErrorModal";
 import { Pagination } from "../components/Pagination";
 import { ExcelExport } from "../components/ExcelExport";
+import DatePicker from "react-datepicker";
+// @ts-ignore
+import "react-datepicker/dist/react-datepicker.css";
 
 export default function ReportPage() {
     const currentUser = useQuery(api.users.getCurrentUser);
     const allSalesSummaries = useQuery(api.userSalesSummaries.getAllSalesSummaries);
     const deleteSalesSummary = useMutation(api.userSalesSummaries.deleteSalesSummary);
 
-    const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
+    const [selectedFrom, setSelectedFrom] = useState<Date | null>(null);
+    const [selectedTo, setSelectedTo] = useState<Date | null>(null);
     const [selectedBranch, setSelectedBranch] = useState<string>("all");
     const [selectedStatus, setSelectedStatus] = useState<string>("all");
     const [notificationModalOpen, setNotificationModalOpen] = useState<boolean>(false);
@@ -29,17 +33,6 @@ export default function ReportPage() {
     const [pageSize] = useState<number>(20); // Fixed page size, can be made configurable later
 
     const [ConfirmationDialog, confirm] = useConfirm("Delete Sales Summary", "Are you sure you want to delete this sales summary? This action cannot be undone.");
-
-    // Get unique periods for filtering
-    const availablePeriods = useMemo(() => {
-        if (!allSalesSummaries) return [];
-        const periods = allSalesSummaries
-            .map(summary => summary.period)
-            .filter(Boolean)
-            .filter((period, index, arr) => arr.indexOf(period) === index)
-            .sort((a, b) => new Date(b!).getTime() - new Date(a!).getTime());
-        return periods;
-    }, [allSalesSummaries]);
 
     // Get unique branch codes for filtering
     const availableBranches = useMemo(() => {
@@ -56,10 +49,30 @@ export default function ReportPage() {
     const filteredData = useMemo(() => {
         let data = allSalesSummaries || [];
 
-        // Filter by period
-        if (selectedPeriod !== "all") {
-            data = data.filter(summary => summary.period === selectedPeriod);
-        }
+        // Always apply date filters if set
+        data = data.filter(summary => {
+            if (!summary.period) return true;
+            const periodDate = new Date(summary.period);
+            if (isNaN(periodDate.getTime())) return true;
+
+            if (selectedFrom && !selectedTo) {
+                // Show only the selected date
+                const fromDate = new Date(selectedFrom.getFullYear(), selectedFrom.getMonth(), selectedFrom.getDate());
+                const nextDay = new Date(fromDate.getTime() + 24 * 60 * 60 * 1000);
+                return periodDate >= fromDate && periodDate < nextDay;
+            } else if (selectedTo && !selectedFrom) {
+                // Show up to the selected date
+                const toDate = new Date(selectedTo.getFullYear(), selectedTo.getMonth(), selectedTo.getDate(), 23, 59, 59, 999);
+                return periodDate <= toDate;
+            } else if (selectedFrom && selectedTo) {
+                // Show within the range
+                const fromDate = new Date(selectedFrom.getFullYear(), selectedFrom.getMonth(), selectedFrom.getDate());
+                const toDate = new Date(selectedTo.getFullYear(), selectedTo.getMonth(), selectedTo.getDate(), 23, 59, 59, 999);
+                return periodDate >= fromDate && periodDate <= toDate;
+            } else {
+                return true;
+            }
+        });
 
         // Filter by branch
         if (selectedBranch !== "all") {
@@ -72,21 +85,14 @@ export default function ReportPage() {
             data = data.filter(summary => summary.amountsMatch === isMatched);
         }
 
-        // Sort by period (latest first) when showing all periods
-        if (selectedPeriod === "all") {
-            data = data.sort((a, b) => {
-                if (!a.period && !b.period) return 0;
-                if (!a.period) return 1;
-                if (!b.period) return -1;
-                return new Date(b.period).getTime() - new Date(a.period).getTime();
-            });
-        }
+        // Sort by creation time (latest first)
+        data = data.sort((a, b) => new Date(b._creationTime).getTime() - new Date(a._creationTime).getTime());
 
         // Reset to page 1 when filters change
         setCurrentPage(1);
 
         return data;
-    }, [allSalesSummaries, selectedPeriod, selectedBranch, selectedStatus]);
+    }, [allSalesSummaries, selectedFrom, selectedTo, selectedBranch, selectedStatus]);
 
     // Pagination
     const totalRecords = filteredData.length;
@@ -101,7 +107,8 @@ export default function ReportPage() {
     };
 
     const handleClearFilters = () => {
-        setSelectedPeriod("all");
+        setSelectedFrom(null);
+        setSelectedTo(null);
         setSelectedBranch("all");
         setSelectedStatus("all");
         setCurrentPage(1);
@@ -156,19 +163,23 @@ export default function ReportPage() {
                     <div className="flex flex-wrap gap-4">
                         <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-gray-500" />
-                            <label className="text-sm font-medium">Period:</label>
-                            <select
-                                value={selectedPeriod}
-                                onChange={(e) => setSelectedPeriod(e.target.value)}
+                            <label className="text-sm font-medium">Period From:</label>
+                            <DatePicker
+                                selected={selectedFrom}
+                                onChange={(date: Date | null) => setSelectedFrom(date)}
                                 className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            >
-                                <option value="all">All Periods</option>
-                                {availablePeriods.map((period) => (
-                                    <option key={period} value={period!}>
-                                        {period}
-                                    </option>
-                                ))}
-                            </select>
+                                placeholderText="Select start date"
+                            />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <label className="text-sm font-medium">Period To:</label>
+                            <DatePicker
+                                selected={selectedTo}
+                                onChange={(date: Date | null) => setSelectedTo(date)}
+                                minDate={selectedFrom || undefined}
+                                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholderText="Select end date"
+                            />
                         </div>
                         <div className="flex items-center gap-2">
                             <Store className="h-4 w-4 text-gray-500" />
@@ -203,7 +214,7 @@ export default function ReportPage() {
                             onClick={handleClearFilters}
                             variant="outline"
                             className="flex items-center gap-2 px-3 py-2 h-auto text-gray-600 hover:text-gray-800 border-gray-300"
-                            disabled={selectedPeriod === "all" && selectedBranch === "all" && selectedStatus === "all"}
+                            disabled={!selectedFrom && !selectedTo && selectedBranch === "all" && selectedStatus === "all"}
                         >
                             <X className="h-4 w-4" />
                             Clear Filters
@@ -211,10 +222,12 @@ export default function ReportPage() {
                     </div>
                     <div className="mt-4 text-sm text-gray-600">
                         Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} records
-                        {(selectedPeriod !== "all" || selectedBranch !== "all" || selectedStatus !== "all") && (
+                        {(selectedFrom || selectedTo || selectedBranch !== "all" || selectedStatus !== "all") && (
                             <span className="ml-2">
-                                (filtered by {selectedPeriod !== "all" && `period: ${selectedPeriod}`}
-                                {(selectedPeriod !== "all" && selectedBranch !== "all") || (selectedPeriod !== "all" && selectedStatus !== "all") ? ", " : ""}
+                                (filtered by {selectedFrom && `from: ${selectedFrom.toLocaleDateString()}`}
+                                {(selectedFrom && selectedTo) || (selectedFrom && selectedBranch !== "all") || (selectedFrom && selectedStatus !== "all") ? ", " : ""}
+                                {selectedTo && `to: ${selectedTo.toLocaleDateString()}`}
+                                {(selectedTo && selectedBranch !== "all") || (selectedTo && selectedStatus !== "all") ? ", " : ""}
                                 {selectedBranch !== "all" && `branch: ${selectedBranch}`}
                                 {(selectedBranch !== "all" && selectedStatus !== "all") ? ", " : ""}
                                 {selectedStatus !== "all" && `status: ${selectedStatus}`})
@@ -259,6 +272,12 @@ export default function ReportPage() {
                                     <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
                                         Head Count
                                     </th>
+                                    <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Updated
+                                    </th>
+                                    <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Created
+                                    </th>
                                     <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky right-15 sm:right-20 bg-gray-200 border-l border-gray-200 z-10">
                                         Status
                                     </th>
@@ -272,7 +291,7 @@ export default function ReportPage() {
                                     <tr key={summary._id} className="hover:bg-gray-50 even:bg-gray-50 group">
                                         <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
                                             <div className="text-sm font-medium text-gray-900">
-                                                {summary.branchCode}
+                                                {summary.branchCode.split(' ')[0]}<br />{summary.branchCode.split(' ')[1] || ''}
                                             </div>
                                         </td>
                                         <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-900">
@@ -287,6 +306,9 @@ export default function ReportPage() {
                                             </div>
                                             <div className="text-sm text-gray-500">
                                                 GC: ₱{summary.gc || '0.00'}
+                                            </div>
+                                            <div className="text-sm text-gray-500">
+                                                Credit Note: ₱{summary.creditNote || '0.00'}
                                             </div>
                                             <div className="text-sm font-medium text-gray-900">
                                                 Total: ₱{summary.totalPayments || '0.00'}
@@ -321,7 +343,7 @@ export default function ReportPage() {
                                             <div className="block sm:hidden text-xs text-gray-900">
                                                 Non-Regular Amt: ₱{summary.nonRegularAmt}
                                             </div>
-                                            <div className="hidden sm:block text-xs sm:text-sm text-gray-500">
+                                            <div className="text-xs sm:text-sm text-gray-500">
                                                 Qty: {summary.totalQtySold}
                                             </div>
                                             <div className="text-sm font-medium text-gray-900">
@@ -334,6 +356,26 @@ export default function ReportPage() {
                                         </td>
                                         <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-900 hidden sm:table-cell">
                                             {summary.headCount || 'N/A'}
+                                        </td>
+                                        <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {summary.updatedAt ? (
+                                                <>
+                                                    {new Date(summary.updatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                                    <br />
+                                                    <span className="text-xs text-gray-500">
+                                                        {new Date(summary.updatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                </>
+                                            ) : 'N/A'}
+                                        </td>
+                                        <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-900">
+                                            <>
+                                                {new Date(summary._creationTime).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                                <br />
+                                                <span className="text-xs text-gray-500">
+                                                    {new Date(summary._creationTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </>
                                         </td>
                                         <td className={`px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap sticky right-15 sm:right-20 border-gray-200 z-10 group-hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${summary.amountsMatch
