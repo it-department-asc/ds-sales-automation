@@ -11,9 +11,10 @@ type ExcelBProps = {
   currentUser?: any;
   hasProductData?: boolean;
   existingPeriod?: string | null;
+  hiddenColumns?: string[]; // Add hidden columns prop
 };
 
-const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingBranchCode, clearTrigger, onData, currentUser, hasProductData = true, existingPeriod }) => {
+const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingBranchCode, clearTrigger, onData, currentUser, hasProductData = true, existingPeriod, hiddenColumns = [] }) => {
   const { toast } = useToast();
   const [excelBHeaders, setExcelBHeaders] = useState<string[]>([]);
   const [excelBRows, setExcelBRows] = useState<any[][]>([]);
@@ -87,6 +88,48 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
       }
 
       setPeriod(extractedPeriod);
+
+      // Check if period is today's date or in the future
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
+
+      let periodDate: Date | null = null;
+      if (extractedPeriod) {
+        // Parse the extracted period back to a date
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'];
+        const monthMap: { [key: string]: number } = {};
+        monthNames.forEach((month, index) => {
+          monthMap[month] = index;
+        });
+
+        const periodMatch = extractedPeriod.match(/^(\w+)\s+(\d+),\s+(\d{4})$/);
+        if (periodMatch) {
+          const [, monthName, day, year] = periodMatch;
+          const month = monthMap[monthName];
+          if (month !== undefined) {
+            periodDate = new Date(parseInt(year), month, parseInt(day));
+            periodDate.setHours(0, 0, 0, 0); // Reset time to start of day
+          }
+        }
+      }
+
+      if (periodDate && periodDate >= today) {
+        const dateType = periodDate.getTime() === today.getTime() ? 'today' : 'future';
+        handleClear();
+        setError(`Cannot upload files for ${dateType} dates. Please upload files for previous dates only.`);
+        setExcelBHeaders([]);
+        setExcelBRows([]);
+        setBranchCode(null);
+        setPeriod(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        toast({
+          variant: "destructive",
+          title: "Invalid Date",
+          description: `Cannot upload files for ${dateType} dates. Please upload files for previous dates only.`,
+        });
+        return;
+      }
 
       // Check if period matches existing period from other file
       if (existingPeriod && extractedPeriod && extractedPeriod !== existingPeriod) {
@@ -303,17 +346,23 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
             <table className="min-w-[72rem] w-full text-xs sm:text-sm text-left">
               <thead>
                 <tr>
-                  {excelBHeaders.map((header, idx) => (
-                    <th key={idx} className="px-2 sm:px-4 py-2 border-b font-bold bg-gray-100 text-xs sm:text-base sticky top-0 z-10">{header}</th>
-                  ))}
+                  {excelBHeaders
+                    .map((header, idx) => ({ header, idx }))
+                    .filter(({ header }) => !hiddenColumns.some(hidden => hidden.toLowerCase() === header.toLowerCase()))
+                    .map(({ header, idx }) => (
+                      <th key={idx} className="px-2 sm:px-4 py-2 border-b font-bold bg-gray-100 text-xs sm:text-base sticky top-0 z-10">{header}</th>
+                    ))}
                 </tr>
               </thead>
               <tbody>
                 {excelBRows.map((row, idx) => (
                   <tr key={idx} className="hover:bg-gray-50">
-                    {excelBHeaders.map((_, colIdx) => (
-                      <td key={colIdx} className="px-2 sm:px-4 py-2 border-b text-xs sm:text-base break-words max-w-[120px] sm:max-w-none">{row[colIdx] ?? '-'}</td>
-                    ))}
+                    {excelBHeaders
+                      .map((header, colIdx) => ({ header, colIdx }))
+                      .filter(({ header }) => !hiddenColumns.some(hidden => hidden.toLowerCase() === header.toLowerCase()))
+                      .map(({ header, colIdx }) => (
+                        <td key={colIdx} className="px-2 sm:px-4 py-2 border-b text-xs sm:text-base break-words max-w-[120px] sm:max-w-none">{row[colIdx] ?? '-'}</td>
+                      ))}
                   </tr>
                 ))}
               </tbody>
