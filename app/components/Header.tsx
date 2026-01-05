@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/nextjs';
-import { Menu, Store, Home, FileText, BarChart3 } from 'lucide-react';
+import { SignedIn, SignedOut, useUser, useClerk } from '@clerk/nextjs';
+import { Menu, Store, Home, FileText, BarChart3, LogOut, ChevronDown } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AuthButtons } from './AuthButtons';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -12,6 +14,7 @@ import { api } from '../../convex/_generated/api';
 export function Header() {
   const [open, setOpen] = useState(false);
   const { user } = useUser();
+  const { signOut } = useClerk();
   const currentUser = useQuery(api.users.getCurrentUser);
   const isAdmin = currentUser?.role === 'admin';
 
@@ -60,30 +63,69 @@ export function Header() {
             <AuthButtons />
           </SignedOut>
           <SignedIn>
-            <div className="flex items-center mr-3">
-              {/* <div className="text-right mr-3">
-                <div className="text-sm font-medium text-gray-900">
-                  {user?.firstName || user?.username || 'User'}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {user?.primaryEmailAddress?.emailAddress}
-                </div>
-              </div> */}
-              <div className="flex items-center gap-4">
+            <div className="flex items-center">
+              <div className="flex items-center sm:gap-2">
                 {/* Store/Branch Info */}
                 {currentUser?.storeId && currentUser?.branch && (
                   <div className="flex items-center gap-2 px-3 py-2 bg-accent rounded-lg border">
                     <Store className="h-4 w-4 text-muted-foreground" />
                     <div className="text-sm">
                       <span className="font-medium text-foreground">{currentUser.storeId}{" "}</span>
-
                       <span className="text-muted-foreground">{currentUser.branch}</span>
                     </div>
                   </div>
                 )}
+
+                {/* User Profile Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-accent transition-colors">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user?.imageUrl} alt={user?.firstName || 'User'} />
+                      <AvatarFallback>
+                        {user?.firstName?.charAt(0)?.toUpperCase() || user?.username?.charAt(0)?.toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="hidden sm:block text-left">
+                      <div className="text-sm font-medium text-foreground">
+                        {user?.firstName || user?.username || 'User'}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {user?.primaryEmailAddress?.emailAddress}
+                      </div>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64">
+                    <div className="px-2 py-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={user?.imageUrl} alt={user?.firstName || 'User'} />
+                          <AvatarFallback className="text-sm">
+                            {user?.firstName?.charAt(0)?.toUpperCase() || user?.username?.charAt(0)?.toUpperCase() || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-foreground truncate">
+                            {user?.firstName || user?.username || 'User'}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {user?.primaryEmailAddress?.emailAddress}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => signOut()}
+                      className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
-            <UserButton />
           </SignedIn>
         </div>
       </header>

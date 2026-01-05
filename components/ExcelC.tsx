@@ -84,6 +84,48 @@ const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clear
       }
       setPeriod(extractedPeriod);
 
+      // Check if period is today's date or in the future
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
+
+      let periodDate: Date | null = null;
+      if (extractedPeriod) {
+        // Parse the extracted period back to a date
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'];
+        const monthMap: { [key: string]: number } = {};
+        monthNames.forEach((month, index) => {
+          monthMap[month] = index;
+        });
+
+        const periodMatch = extractedPeriod.match(/^(\w+)\s+(\d+),\s+(\d{4})$/);
+        if (periodMatch) {
+          const [, monthName, day, year] = periodMatch;
+          const month = monthMap[monthName];
+          if (month !== undefined) {
+            periodDate = new Date(parseInt(year), month, parseInt(day));
+            periodDate.setHours(0, 0, 0, 0); // Reset time to start of day
+          }
+        }
+      }
+
+      if (periodDate && periodDate >= today) {
+        const dateType = periodDate.getTime() === today.getTime() ? 'today' : 'future';
+        handleClear();
+        setError(`Cannot upload files for ${dateType} dates. Please upload files for previous dates only.`);
+        setHeaders([]);
+        setRows([]);
+        setBranchCode(null);
+        setPeriod(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        toast({
+          variant: "destructive",
+          title: "Invalid Date",
+          description: `Cannot upload files for ${dateType} dates. Please upload files for previous dates only.`,
+        });
+        return;
+      }
+
       // Check if period matches existing period from other file
       if (existingPeriod && extractedPeriod && extractedPeriod !== existingPeriod) {
         handleClear();

@@ -2,7 +2,7 @@ export default {
   providers: [
     {
       type: "oidc",
-      domain: "accounts.dsr.albertogroup.com.ph",
+      domain: "easy-lemur-88.clerk.accounts.dev",
       applicationID: "convex",
     },
   ],

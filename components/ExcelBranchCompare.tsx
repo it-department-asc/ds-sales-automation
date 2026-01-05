@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ExcelB from './ExcelB';
 import ExcelC from './ExcelC';
+import { Average } from 'next/font/google';
 
 type ExcelBranchCompareProps = {
   excelAProducts: any;
@@ -69,6 +70,7 @@ const ExcelBranchCompare: React.FC<ExcelBranchCompareProps> = ({
         currentUser={currentUser}
         hasProductData={hasProductData}
         existingPeriod={excelCPeriod}
+        hiddenColumns={['Landed Cost', 'Unit Cost', 'Total Cost', 'Average Cost', 'Average Price', 'Gross Price']}
       />
       <ExcelC
         onBranchCode={handleBranchCode}

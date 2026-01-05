@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { SignIn, SignUp } from '@clerk/nextjs';
+import { LogIn, UserPlus } from 'lucide-react';
 
 export function AuthButtons() {
   const [showSignIn, setShowSignIn] = useState(false);
@@ -11,15 +12,17 @@ export function AuthButtons() {
     <>
       <button
         onClick={() => setShowSignIn(true)}
-        className="px-4 py-2 text-sm font-medium text-black bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-black bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
       >
-        Sign In
+        <LogIn className="h-4 w-4" />
+        <span>Sign In</span>
       </button>
       <button
         onClick={() => setShowSignUp(true)}
-        className="ml-3 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        className="ml-3 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
       >
-        Sign Up
+        <UserPlus className="h-4 w-4" />
+        <span>Sign Up</span>
       </button>
 
       {showSignIn && (

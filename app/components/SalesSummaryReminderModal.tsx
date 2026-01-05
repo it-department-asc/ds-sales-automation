@@ -13,6 +13,7 @@ interface SalesSummaryReminderModalProps {
 
 export function SalesSummaryReminderModal({ currentUser }: SalesSummaryReminderModalProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [missingDates, setMissingDates] = useState<Date[]>([]);
 
   // Get user's sales summaries
   const userSalesSummaries = useQuery(api.userSalesSummaries.getUserSalesSummaries);
@@ -21,29 +22,82 @@ export function SalesSummaryReminderModal({ currentUser }: SalesSummaryReminderM
     // Only show modal for regular users, not admins
     if (currentUser?.role === 'admin' || !userSalesSummaries) return;
 
-    // Helper function to get current Philippine date (YYYY-MM-DD)
-    const getPhilippineDate = () => {
-      const now = new Date();
-      // Philippine time is UTC+8
-      const philippineTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
-      return philippineTime.toISOString().split('T')[0]; // YYYY-MM-DD format
+    // REMINDER START DATE
+    const reminderStartDate = new Date('2026-01-01');
+    const currentDate = new Date();
+    if (currentDate < reminderStartDate) return;
+
+    const userBranchCode = currentUser?.storeId && currentUser?.branch ? `${currentUser.storeId} ${currentUser.branch}` : null;
+    if (!userBranchCode) return;
+
+    // Helper function to get Philippine date string (YYYY-MM-DD)
+    const getPhilippineDateString = (date: Date) => {
+      const philippineTime = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+      return philippineTime.toISOString().split('T')[0];
     };
 
-    // Helper function to check if a date is today in Philippine time
-    const isTodayPhilippineTime = (date: Date) => {
-      const datePhilippine = new Date(date.getTime() + (8 * 60 * 60 * 1000));
-      const todayPhilippine = getPhilippineDate();
-      return datePhilippine.toISOString().split('T')[0] === todayPhilippine;
+    // Helper function to check if a date matches a Philippine date
+    const isSamePhilippineDate = (date: Date, targetDateString: string) => {
+      return getPhilippineDateString(date) === targetDateString;
     };
 
-    // Check if user has submitted for today (Philippine time)
-    const hasSubmittedToday = userSalesSummaries.some(summary => {
-      const summaryDate = new Date(summary.createdAt);
-      return isTodayPhilippineTime(summaryDate);
-    });
+    // Get the last 7 days (excluding today), but not before reminder start date
+    const missingDates: Date[] = [];
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
 
-    // Show modal if not submitted for today
-    if (!hasSubmittedToday) {
+    // Start from the maximum of (reminderStartDate, 7 days ago)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const startDate = reminderStartDate > sevenDaysAgo ? reminderStartDate : sevenDaysAgo;
+
+    for (let d = new Date(startDate); d <= yesterday; d.setDate(d.getDate() + 1)) {
+      const checkDate = new Date(d);
+      const dateString = getPhilippineDateString(checkDate);
+
+      // Check if user has submitted for this date
+      const hasSubmitted = userSalesSummaries.some(summary => {
+        // Check by createdAt date first
+        const summaryDate = new Date(summary.createdAt);
+        if (isSamePhilippineDate(summaryDate, dateString)) {
+          return true;
+        }
+
+        // Also check by period field if it exists and matches the formatted date
+        if (summary.period) {
+          // Parse the period string like "January 04, 2026" to a date
+          const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'];
+          const monthMap: { [key: string]: number } = {};
+          monthNames.forEach((month, index) => {
+            monthMap[month] = index;
+          });
+
+          const periodMatch = summary.period.match(/^(\w+)\s+(\d+),\s+(\d{4})$/);
+          if (periodMatch) {
+            const [, monthName, day, year] = periodMatch;
+            const month = monthMap[monthName];
+            if (month !== undefined) {
+              const periodDate = new Date(parseInt(year), month, parseInt(day));
+              const periodDateString = getPhilippineDateString(periodDate);
+              if (periodDateString === dateString) {
+                return true;
+              }
+            }
+          }
+        }
+
+        return false;
+      });
+
+      if (!hasSubmitted) {
+        missingDates.push(new Date(checkDate));
+      }
+    }
+
+    // Show modal if there are missing dates
+    if (missingDates.length > 0) {
+      setMissingDates(missingDates);
       setIsOpen(true);
     }
   }, [currentUser, userSalesSummaries]);
@@ -51,14 +105,15 @@ export function SalesSummaryReminderModal({ currentUser }: SalesSummaryReminderM
   // Don't render anything for admins
   if (currentUser?.role === 'admin') return null;
 
-  // Get today's date for display
-  const today = new Date();
-  const todayFormatted = today.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+  // Format missing dates for display
+  const formattedMissingDates = missingDates
+    .sort((a, b) => b.getTime() - a.getTime()) // Most recent first
+    .map(date => date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }));
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -78,17 +133,27 @@ export function SalesSummaryReminderModal({ currentUser }: SalesSummaryReminderM
                 Daily Sales Report Submission Required
               </p>
               <p className="text-gray-600 text-sm">
-                You haven't submitted your sales summary for <strong>{todayFormatted}</strong> yet.
+                You haven't submitted sales summaries for the following dates:
               </p>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <ul className="text-red-800 text-sm space-y-1">
+                  {formattedMissingDates.map((date, index) => (
+                    <li key={index} className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0"></span>
+                      {date}
+                    </li>
+                  ))}
+                </ul>
+              </div>
               <p className="text-gray-600 text-sm">
-                Please complete your sales summary submission as soon as possible to maintain accurate records.
+                Please complete your sales summary submissions as soon as possible to maintain accurate records.
               </p>
             </div>
           </div>
 
           <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
             <p className="text-orange-800 text-sm font-medium">
-              ⏰ Deadline: Sales summaries should be submitted by 10:00 AM daily
+              📊 Please submit your sales summaries regularly to maintain accurate records
             </p>
           </div>
         </div>
