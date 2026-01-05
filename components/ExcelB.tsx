@@ -56,14 +56,20 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
       // First pass: look for YYYY-MM-DD format anywhere in the file
       for (const row of allRows) {
         const rowText = row.map(cell => String(cell ?? '').trim()).join(' ');
-        const dateMatch = rowText.match(/^(\d{4}-\d{2}-\d{2})$/) || rowText.match(/^\s*(\d{4}-\d{2}-\d{2})\s*$/);
+        const dateMatch = rowText.match(/^(\d{4}-\d{1,2}-\d{1,2})$/) || rowText.match(/^\s*(\d{4}-\d{1,2}-\d{1,2})\s*$/);
         if (dateMatch) {
-          const dateStr = dateMatch[1];
+          let dateStr = dateMatch[1];
+          // Normalize date by padding month and day with zeros
+          const [year, month, day] = dateStr.split('-');
+          const paddedMonth = month.padStart(2, '0');
+          const paddedDay = day.padStart(2, '0');
+          const normalizedDateStr = `${year}-${paddedMonth}-${paddedDay}`;
           // Format the date as "Month DD, YYYY"
-          const date = new Date(dateStr + 'T00:00:00');
+          const date = new Date(normalizedDateStr + 'T00:00:00');
           const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
             'July', 'August', 'September', 'October', 'November', 'December'];
-          extractedPeriod = `${monthNames[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+          const displayDay = String(date.getDate()).padStart(2, '0');
+          extractedPeriod = `${monthNames[date.getMonth()]} ${displayDay}, ${date.getFullYear()}`;
           break;
         }
       }
