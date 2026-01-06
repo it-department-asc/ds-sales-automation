@@ -5,6 +5,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useConfirm } from "../../../hooks/use-confirm";
+import { Edit, Shield, ShieldOff, Trash2 } from "lucide-react";
 
 interface User {
   _id: Id<"users">;
@@ -133,22 +134,34 @@ export function UserActionsMenu({ user, onEdit }: UserActionsMenuProps) {
               onEdit();
               setIsOpen(false);
             }}
-            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
           >
+            <Edit className="w-4 h-4 mr-3" />
             Edit
           </button>
 
           <button
             onClick={handleBlock}
-            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
           >
-            {user.status === "active" ? "Block" : "Unblock"}
+            {user.status === "active" ? (
+              <>
+                <ShieldOff className="w-4 h-4 mr-3" />
+                Block
+              </>
+            ) : (
+              <>
+                <Shield className="w-4 h-4 mr-3" />
+                Unblock
+              </>
+            )}
           </button>
 
           <button
             onClick={handleDelete}
-            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+            className="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
           >
+            <Trash2 className="w-4 h-4 mr-3" />
             Delete
           </button>
         </div>

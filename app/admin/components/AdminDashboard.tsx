@@ -131,7 +131,7 @@ export function AdminDashboard() {
     };
 
     return (
-        <div className="mt-4 md:mt-8 w-full relative">
+        <div className="mt-4 md:mt-8 w-full relative min-h-screen sm:min-h-0">
             <div className="mb-4">
                 <div className="flex flex-col sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center justify-between sm:block">
@@ -185,13 +185,14 @@ export function AdminDashboard() {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-200">
                             <tr>
+                                <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Store ID</th>
+                                <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sales Summary</th>
-                                <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Store ID</th>
-                                <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Branch</th>
+
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Region</th>
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Province</th>
                                 <th className="px-4 sm:px-8 py-2 sm:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">City</th>
@@ -214,6 +215,12 @@ export function AdminDashboard() {
                             ) : (
                                 paginatedUsers?.map((user, index) => (
                                     <tr key={user._id} className="hover:bg-gray-50 even:bg-gray-50 transition-colors cursor-pointer group" onClick={() => handleEdit(user._id)}>
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 text-left">
+                                            <TextHighlight text={user.storeId || '-'} searchTerm={searchTerm} />
+                                        </td>
+                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 text-left">
+                                            <TextHighlight text={user.branch || '-'} searchTerm={searchTerm} />
+                                        </td>
                                         <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-left">
                                             <div className="flex items-center">
                                                 <div className="flex-shrink-0 h-8 w-8 bg-gray-200 rounded-full flex items-center justify-center">
@@ -283,12 +290,7 @@ export function AdminDashboard() {
                                                 }
                                             })()}
                                         </td>
-                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell text-left">
-                                            <TextHighlight text={user.storeId || '-'} searchTerm={searchTerm} />
-                                        </td>
-                                        <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell text-left">
-                                            <TextHighlight text={user.branch || '-'} searchTerm={searchTerm} />
-                                        </td>
+
                                         <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell text-left">
                                             <TextHighlight text={user.region || '-'} searchTerm={searchTerm} />
                                         </td>
@@ -347,8 +349,8 @@ export function AdminDashboard() {
                                         <button
                                             onClick={() => setCurrentPage(page)}
                                             className={`px-3 py-2 text-sm font-medium rounded-md ${currentPage === page
-                                                    ? 'bg-blue-600 text-white'
-                                                    : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                                                ? 'bg-blue-600 text-white'
+                                                : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
                                                 }`}
                                         >
                                             {page}

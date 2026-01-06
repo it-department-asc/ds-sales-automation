@@ -6,7 +6,7 @@ import { api } from "../../../convex/_generated/api";
 import { Loading } from "../../../components/ui/loading";
 import { AccessDenied } from "../../../components/ui/access-denied";
 import { Button } from "../../../components/ui/button";
-import { Trash2, Filter, Calendar, Store, X, CheckCircle } from "lucide-react";
+import { Trash2, Filter, Calendar, Store, X, CheckCircle, FileX } from "lucide-react";
 import { useConfirm } from "../../../hooks/use-confirm";
 import { SuccessErrorModal } from "../../../components/SuccessErrorModal";
 import { Pagination } from "../components/Pagination";
@@ -85,8 +85,18 @@ export default function ReportPage() {
             data = data.filter(summary => summary.amountsMatch === isMatched);
         }
 
-        // Sort by creation time (latest first)
-        data = data.sort((a, b) => new Date(b._creationTime).getTime() - new Date(a._creationTime).getTime());
+        // Sort by period date (earliest first) if date filters are applied, otherwise by creation time
+        if (selectedFrom || selectedTo) {
+            data = data.sort((a, b) => {
+                if (!a.period || !b.period) return 0;
+                const dateA = new Date(a.period);
+                const dateB = new Date(b.period);
+                return dateA.getTime() - dateB.getTime(); // Earliest period first
+            });
+        } else {
+            // Sort by creation time (latest first) when no date filters
+            data = data.sort((a, b) => new Date(b._creationTime).getTime() - new Date(a._creationTime).getTime());
+        }
 
         // Reset to page 1 when filters change
         setCurrentPage(1);
@@ -416,6 +426,9 @@ export default function ReportPage() {
 
                     {paginatedData.length === 0 && (
                         <div className="text-center py-12">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <FileX className="w-8 h-8 text-gray-400" />
+                            </div>
                             <p className="text-gray-500">No sales summaries found for the selected period.</p>
                         </div>
                     )}
