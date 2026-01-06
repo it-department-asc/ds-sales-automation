@@ -129,6 +129,30 @@ export const getAllSalesSummaries = query({
   },
 });
 
+export const getUserSalesSummariesByUserId = query({
+  args: { userId: v.optional(v.id("users")) },
+  handler: async (ctx, args) => {
+    if (!args.userId) {
+      return [];
+    }
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return [];
+    }
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (!currentUser || currentUser.role !== "admin") {
+      return [];
+    }
+    return await ctx.db
+      .query("userSalesSummaries")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId!))
+      .collect();
+  },
+});
+
 export const getExistingPeriods = query({
   args: {},
   handler: async (ctx) => {

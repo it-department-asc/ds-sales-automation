@@ -14,13 +14,19 @@ interface SalesSummaryReminderModalProps {
 export function SalesSummaryReminderModal({ currentUser }: SalesSummaryReminderModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [missingDates, setMissingDates] = useState<Date[]>([]);
+  const [hasShownReminder, setHasShownReminder] = useState(false);
 
   // Get user's sales summaries
   const userSalesSummaries = useQuery(api.userSalesSummaries.getUserSalesSummaries);
 
+  // Reset reminder state when user changes
+  useEffect(() => {
+    setHasShownReminder(false);
+  }, [currentUser?.clerkId]);
+
   useEffect(() => {
     // Only show modal for regular users, not admins
-    if (currentUser?.role === 'admin' || !userSalesSummaries) return;
+    if (currentUser?.role === 'admin' || !userSalesSummaries || hasShownReminder) return;
 
     // REMINDER START DATE
     const reminderStartDate = new Date('2026-01-01');
@@ -57,13 +63,7 @@ export function SalesSummaryReminderModal({ currentUser }: SalesSummaryReminderM
 
       // Check if user has submitted for this date
       const hasSubmitted = userSalesSummaries.some(summary => {
-        // Check by createdAt date first
-        const summaryDate = new Date(summary.createdAt);
-        if (isSamePhilippineDate(summaryDate, dateString)) {
-          return true;
-        }
-
-        // Also check by period field if it exists and matches the formatted date
+        // Check by period field if it exists and matches the formatted date
         if (summary.period) {
           // Parse the period string like "January 04, 2026" to a date
           const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -99,8 +99,9 @@ export function SalesSummaryReminderModal({ currentUser }: SalesSummaryReminderM
     if (missingDates.length > 0) {
       setMissingDates(missingDates);
       setIsOpen(true);
+      setHasShownReminder(true);
     }
-  }, [currentUser, userSalesSummaries]);
+  }, [currentUser, userSalesSummaries, hasShownReminder]);
 
   // Don't render anything for admins
   if (currentUser?.role === 'admin') return null;

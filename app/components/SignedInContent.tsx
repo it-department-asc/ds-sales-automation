@@ -93,7 +93,7 @@ function UserWelcome({ user, currentUser }: { user: any, currentUser: any }) {
                   </svg>
                 </div>
                 <div className="text-green-800 font-medium text-sm">
-                  {mostRecentSummary?.updatedAt ? 'Sales Summary Updated Today' : 'Sales Summary Saved Today'}
+                  {mostRecentSummary?.updatedAt ? `Sales Summary Updated Today - ${mostRecentSummary.period}` : `Sales Summary Saved Today - ${mostRecentSummary?.period}`}
                 </div>
                 <div className="text-green-600 text-xs">
                   {mostRecentSummary?.updatedAt 
@@ -108,7 +108,7 @@ function UserWelcome({ user, currentUser }: { user: any, currentUser: any }) {
               
               {logsExpanded && mostRecentSummary && (
                 <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-10 min-w-64">
-                  <div className="text-xs font-medium text-gray-700 mb-2">Activity Logs</div>
+                  <div className="text-xs font-medium text-gray-700 mb-2">Activity Logs - {mostRecentSummary.period}</div>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>

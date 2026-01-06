@@ -378,12 +378,26 @@ export default function ReportPage() {
                                             </>
                                         </td>
                                         <td className={`px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap sticky right-15 sm:right-20 border-gray-200 z-10 group-hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${summary.amountsMatch
-                                                ? 'bg-green-100 text-green-800'
-                                                : 'bg-red-100 text-red-800'
-                                                }`}>
-                                                {summary.amountsMatch ? 'Matched' : 'Mismatched'}
-                                            </span>
+                                            {(() => {
+                                                const paymentsStr = (summary.totalPayments || '0').toString().replace(/,/g, '');
+                                                const salesStr = (summary.totalAmt || '0').toString().replace(/,/g, '');
+                                                const payments = parseFloat(paymentsStr) || 0;
+                                                const sales = parseFloat(salesStr) || 0;
+                                                const diff = payments - sales;
+                                                const isMatched = Math.abs(diff) < 0.01;
+                                                return (
+                                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${isMatched
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : 'bg-red-100 text-red-800'
+                                                        }`}
+                                                        title={isMatched ? 'Payments match sales amount' : `Payments ${diff > 0 ? 'exceed' : 'are less than'} sales by ₱${Math.abs(diff).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                                                        {isMatched ? 'Matched' : (() => {
+                                                            const isOver = diff > 0;
+                                                            return `${isOver ? 'Over' : 'Under'}: ₱${Math.abs(diff).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                                                        })()}
+                                                    </span>
+                                                );
+                                            })()}
                                         </td>
                                         <td className={`px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm font-medium sticky right-0 border-gray-200 z-10 group-hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                                             <Button
