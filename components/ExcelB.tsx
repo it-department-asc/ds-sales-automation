@@ -86,6 +86,15 @@ const ExcelB: React.FC<ExcelBProps> = ({ excelAProducts, onBranchCode, existingB
           }
         }
       }
+      // Normalize the extracted period to pad the day
+      if (extractedPeriod) {
+        const match = extractedPeriod.match(/^(\w+)\s+(\d+),\s+(\d{4})$/);
+        if (match) {
+          const [, monthName, day, year] = match;
+          const paddedDay = day.padStart(2, '0');
+          extractedPeriod = `${monthName} ${paddedDay}, ${year}`;
+        }
+      }
 
       setPeriod(extractedPeriod);
 
