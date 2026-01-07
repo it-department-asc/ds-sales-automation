@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Loading } from "../../../components/ui/loading";
 import { AccessDenied } from "../../../components/ui/access-denied";
 import { Button } from "../../../components/ui/button";
-import { Trash2, Filter, Calendar, Store, X, CheckCircle, FileX } from "lucide-react";
+import { Trash2, Filter, Calendar, Store, X, CheckCircle, FileX, ArrowUp, ArrowDown } from "lucide-react";
 import { useConfirm } from "../../../hooks/use-confirm";
 import { SuccessErrorModal } from "../../../components/SuccessErrorModal";
 import { Pagination } from "../components/Pagination";
@@ -32,7 +32,14 @@ export default function ReportPage() {
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [pageSize] = useState<number>(20); // Fixed page size, can be made configurable later
 
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // Default to latest period first
+
     const [ConfirmationDialog, confirm] = useConfirm("Delete Sales Summary", "Are you sure you want to delete this sales summary? This action cannot be undone.");
+
+    // Reset to page 1 when filters or sort change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [selectedFrom, selectedTo, selectedBranch, selectedStatus, sortOrder]);
 
     // Get unique branch codes for filtering
     const availableBranches = useMemo(() => {
@@ -85,24 +92,21 @@ export default function ReportPage() {
             data = data.filter(summary => summary.amountsMatch === isMatched);
         }
 
-        // Sort by period date (earliest first) if date filters are applied, otherwise by creation time
-        if (selectedFrom || selectedTo) {
-            data = data.sort((a, b) => {
-                if (!a.period || !b.period) return 0;
-                const dateA = new Date(a.period);
-                const dateB = new Date(b.period);
-                return dateA.getTime() - dateB.getTime(); // Earliest period first
-            });
-        } else {
-            // Sort by creation time (latest first) when no date filters
-            data = data.sort((a, b) => new Date(b._creationTime).getTime() - new Date(a._creationTime).getTime());
-        }
-
-        // Reset to page 1 when filters change
-        setCurrentPage(1);
+        // Sort by period date (latest first by default, or as selected)
+        data = data.sort((a, b) => {
+            if (!a.period || !b.period) {
+                // If no period, sort by creation time
+                return sortOrder === 'desc' 
+                    ? new Date(b._creationTime).getTime() - new Date(a._creationTime).getTime()
+                    : new Date(a._creationTime).getTime() - new Date(b._creationTime).getTime();
+            }
+            const dateA = new Date(a.period);
+            const dateB = new Date(b.period);
+            return sortOrder === 'desc' ? dateB.getTime() - dateA.getTime() : dateA.getTime() - dateB.getTime();
+        });
 
         return data;
-    }, [allSalesSummaries, selectedFrom, selectedTo, selectedBranch, selectedStatus]);
+    }, [allSalesSummaries, selectedFrom, selectedTo, selectedBranch, selectedStatus, sortOrder]);
 
     // Pagination
     const totalRecords = filteredData.length;
@@ -262,7 +266,16 @@ export default function ReportPage() {
                                         Branch
                                     </th>
                                     <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Period
+                                        <div className="flex items-center gap-1">
+                                            Period
+                                            <button
+                                                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                                                className="p-0.5 rounded text-gray-400 hover:text-gray-600"
+                                                title={`Sort ${sortOrder === 'asc' ? 'descending' : 'ascending'}`}
+                                            >
+                                                {sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+                                            </button>
+                                        </div>
                                     </th>
                                     <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Payments

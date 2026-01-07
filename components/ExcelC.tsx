@@ -26,6 +26,24 @@ const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clear
   const [period, setPeriod] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const parsePeriod = (period: string): Date | null => {
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthMap: { [key: string]: number } = {};
+    monthNames.forEach((month, index) => {
+      monthMap[month] = index;
+    });
+    const match = period.match(/^(\w+)\s+(\d+),\s+(\d{4})$/);
+    if (match) {
+      const [, monthName, day, year] = match;
+      const month = monthMap[monthName];
+      if (month !== undefined) {
+        return new Date(parseInt(year), month, parseInt(day));
+      }
+    }
+    return null;
+  };
+
   const handleClear = () => {
     setHeaders([]);
     setRows([]);
@@ -82,6 +100,15 @@ const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clear
           }
         }
       }
+      // Normalize the extracted period to pad the day
+      if (extractedPeriod) {
+        const match = extractedPeriod.match(/^(\w+)\s+(\d+),\s+(\d{4})$/);
+        if (match) {
+          const [, monthName, day, year] = match;
+          const paddedDay = day.padStart(2, '0');
+          extractedPeriod = `${monthName} ${paddedDay}, ${year}`;
+        }
+      }
       setPeriod(extractedPeriod);
 
       // Check if period is today's date or in the future
@@ -127,7 +154,9 @@ const ExcelC: React.FC<ExcelCProps> = ({ onBranchCode, existingBranchCode, clear
       }
 
       // Check if period matches existing period from other file
-      if (existingPeriod && extractedPeriod && extractedPeriod !== existingPeriod) {
+      const existingDate = existingPeriod ? parsePeriod(existingPeriod) : null;
+      const extractedDate = extractedPeriod ? parsePeriod(extractedPeriod) : null;
+      if (existingDate && extractedDate && existingDate.getTime() !== extractedDate.getTime()) {
         handleClear();
         setError(`Period mismatch: This file is for "${extractedPeriod}" but the other file is for "${existingPeriod}". Please ensure both files are for the same date period.`);
         setHeaders([]);
