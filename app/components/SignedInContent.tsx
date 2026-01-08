@@ -1,8 +1,8 @@
 'use client';
 
 import { useUser } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useCurrentUser, useUserSalesSummaries } from "@/hooks/use-firebase";
+import { useRouter } from 'next/navigation';
 import { AdminDashboard } from "../admin/components/AdminDashboard";
 import { UserDashboard } from "../user/components/UserDashboard";
 import { WaitingForBranch } from "./WaitingForBranch";
@@ -12,10 +12,19 @@ import { useState, useEffect, useRef } from "react";
 
 export function SignedInContent() {
   const { user, isLoaded: clerkLoaded } = useUser();
-  const currentUser = useQuery(api.users.getCurrentUser);
+  const { currentUser, loading: userLoading, refetch: refetchCurrentUser } = useCurrentUser();
+
+  // Listen for user-synced event to refetch current user (new user registration)
+  useEffect(() => {
+    const handleUserSynced = () => {
+      refetchCurrentUser();
+    };
+    window.addEventListener('user-synced', handleUserSynced);
+    return () => window.removeEventListener('user-synced', handleUserSynced);
+  }, [refetchCurrentUser]);
 
   // Show loading immediately on login until all data is fully loaded
-  if (!clerkLoaded || !user || currentUser === undefined) {
+  if (!clerkLoaded || !user || userLoading || currentUser === undefined) {
     return <Loading />;
   }
 
@@ -25,6 +34,8 @@ export function SignedInContent() {
 function UserWelcome({ user, currentUser }: { user: any, currentUser: any }) {
   const [logsExpanded, setLogsExpanded] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { summaries: userSalesSummaries, refetch: refetchUserSalesSummaries } = useUserSalesSummaries();
+  const router = useRouter();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -37,12 +48,27 @@ function UserWelcome({ user, currentUser }: { user: any, currentUser: any }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Refresh summaries and router when modal Continue is clicked
+  useEffect(() => {
+    const onModalContinue = () => {
+      try {
+        if (refetchUserSalesSummaries) refetchUserSalesSummaries();
+        if (router && typeof (router as any).refresh === 'function') {
+          (router as any).refresh();
+        }
+      } catch (e) {
+        console.error('Error refreshing summaries on modal continue:', e);
+        try { window.location.reload(); } catch {}
+      }
+    };
+
+    window.addEventListener('success-modal-continue', onModalContinue as EventListener);
+    return () => window.removeEventListener('success-modal-continue', onModalContinue as EventListener);
+  }, [refetchUserSalesSummaries, router]);
+
   const storeInfo = currentUser?.storeId && currentUser?.branch ? `${currentUser.storeId} ${currentUser.branch}` : '';
   const userName = user?.firstName || user?.username || 'User';
   const userRole = currentUser?.role === 'admin' ? 'Administrator' : 'User';
-  
-  // Get user's sales summaries to check if they saved today
-  const userSalesSummaries = useQuery(api.userSalesSummaries.getUserSalesSummaries);
   
   // Find the most recent summary based on latest activity (updatedAt or createdAt)
   const mostRecentSummary = userSalesSummaries && userSalesSummaries.length > 0 ? userSalesSummaries.reduce((latest, current) => {
@@ -114,7 +140,7 @@ function UserWelcome({ user, currentUser }: { user: any, currentUser: any }) {
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       <span className="text-xs text-gray-600">Created:</span>
                       <span className="text-xs font-medium text-gray-900">
-                        {new Date(mostRecentSummary._creationTime).toLocaleDateString()} {new Date(mostRecentSummary._creationTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(mostRecentSummary.createdAt).toLocaleDateString()} {new Date(mostRecentSummary.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
                     {mostRecentSummary?.updatedAt && (

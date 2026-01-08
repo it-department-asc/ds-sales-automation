@@ -1,24 +1,22 @@
 'use client';
 
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { useSalesSummariesByUserId, useUserMutations } from "@/hooks/use-firebase";
 import { useState, useEffect } from "react";
 import { UserSubmissionCalendar } from "./UserSubmissionCalendar";
-import { Id } from "../../../convex/_generated/dataModel";
 import { useConfirm } from "../../../hooks/use-confirm";
 import { X, Loader2, CheckCircle, User, Calendar } from "lucide-react";
 
 interface EditUserModalProps {
-  userId: Id<"users"> | null;
+  userId: string | null;
+  user: any | null;
   onClose: () => void;
   onSuccess?: () => void;
+  onUserUpdated?: (userId: string, updates: Partial<any>) => void;
 }
 
-export function EditUserModal({ userId, onClose, onSuccess }: EditUserModalProps) {
-  const allUsers = useQuery(api.users.getAllUsers);
-  const user = allUsers?.find(u => u._id === userId);
-  const userSalesSummaries = useQuery(api.userSalesSummaries.getUserSalesSummariesByUserId, userId ? { userId } : {});
-  const updateUser = useMutation(api.users.updateUser);
+export function EditUserModal({ userId, user, onClose, onSuccess, onUserUpdated }: EditUserModalProps) {
+  const { summaries: userSalesSummaries } = useSalesSummariesByUserId(userId || undefined);
+  const { updateUser } = useUserMutations();
   const [ConfirmationDialog, confirm] = useConfirm(
     "Confirm Changes",
     "Are you sure you want to save these changes to the user?"
@@ -80,8 +78,7 @@ export function EditUserModal({ userId, onClose, onSuccess }: EditUserModalProps
 
     setIsSubmitting(true);
     try {
-      await updateUser({
-        userId,
+      const updates = {
         role: formData.role,
         status: formData.status,
         storeId: formData.storeId,
@@ -91,7 +88,11 @@ export function EditUserModal({ userId, onClose, onSuccess }: EditUserModalProps
         city: formData.city,
         lessor: formData.lessor,
         mallName: formData.mallName
-      });
+      };
+      await updateUser(userId, updates);
+
+      // Optimistic update
+      onUserUpdated?.(userId, updates);
 
       onClose();
       onSuccess?.();

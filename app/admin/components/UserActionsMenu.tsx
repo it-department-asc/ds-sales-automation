@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
+import { useUserMutations } from "@/hooks/use-firebase";
 import { useConfirm } from "../../../hooks/use-confirm";
 import { Edit, Shield, ShieldOff, Trash2 } from "lucide-react";
 
 interface User {
-  _id: Id<"users">;
+  id: string;
   clerkId: string;
   status: "active" | "blocked";
 }
@@ -16,17 +14,18 @@ interface User {
 interface UserActionsMenuProps {
   user: User;
   onEdit: () => void;
+  onUserDeleted?: (userId: string) => void;
+  onUserUpdated?: (userId: string, updates: Partial<any>) => void;
 }
 
-export function UserActionsMenu({ user, onEdit }: UserActionsMenuProps) {
+export function UserActionsMenu({ user, onEdit, onUserDeleted, onUserUpdated }: UserActionsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const [isConfirming, setIsConfirming] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  const updateUserStatus = useMutation(api.users.updateUserStatus);
-  const deleteUser = useMutation(api.users.deleteUser);
+  const { updateUserStatus, deleteUser } = useUserMutations();
   const [ConfirmationDialog, confirm] = useConfirm(
     "Delete User",
     "Are you sure you want to delete this user? This will permanently remove their account from the system and they will no longer be able to access the application."
@@ -58,10 +57,9 @@ export function UserActionsMenu({ user, onEdit }: UserActionsMenuProps) {
 
   const handleBlock = async () => {
     const newStatus = user.status === "active" ? "blocked" : "active";
-    await updateUserStatus({
-      userId: user._id,
-      status: newStatus,
-    });
+    // Optimistic update
+    onUserUpdated?.(user.id, { status: newStatus });
+    await updateUserStatus(user.id, newStatus);
     setIsOpen(false);
   };
 
@@ -86,8 +84,10 @@ export function UserActionsMenu({ user, onEdit }: UserActionsMenuProps) {
         throw new Error(errorData.error || 'Failed to delete user from Clerk');
       }
 
-      // If Clerk deletion succeeds, delete from Convex
-      await deleteUser({ userId: user._id });
+      // If Clerk deletion succeeds, delete from Firebase
+      await deleteUser(user.id);
+      // Optimistic update - remove from local state
+      onUserDeleted?.(user.id);
       setIsOpen(false);
     } catch (error) {
       console.error('Error deleting user:', error);

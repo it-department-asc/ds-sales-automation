@@ -1,13 +1,12 @@
 'use client';
 
-import { useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { useUserMutations } from "@/hooks/use-firebase";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
 interface User {
-  _id: string;
+  id?: string;
   storeId?: string;
   branch?: string;
   region?: string;
@@ -35,7 +34,7 @@ interface AdminUserFormProps {
 }
 
 export function AdminUserForm({ user, onSave }: AdminUserFormProps) {
-  const updateUser = useMutation(api.users.updateUser);
+  const { updateUser } = useUserMutations();
 
   const {
     register,
@@ -54,11 +53,10 @@ export function AdminUserForm({ user, onSave }: AdminUserFormProps) {
     },
   });
 
-  const onSubmit = (data: UserFormData) => {
-    updateUser({
-      userId: user._id as any,
-      ...data,
-    });
+  const onSubmit = async (data: UserFormData) => {
+    if (user.id) {
+      await updateUser(user.id, data);
+    }
     onSave();
   };
 

@@ -8,14 +8,13 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AuthButtons } from './AuthButtons';
-import { useQuery } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { useCurrentUser } from '@/hooks/use-firebase';
 
 export function Header() {
   const [open, setOpen] = useState(false);
   const { user } = useUser();
   const { signOut } = useClerk();
-  const currentUser = useQuery(api.users.getCurrentUser);
+  const { currentUser } = useCurrentUser();
   const isAdmin = currentUser?.role === 'admin';
 
   return (

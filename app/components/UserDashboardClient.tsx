@@ -2,16 +2,15 @@
 
 import React, { useEffect, useState } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
-import { useQuery } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { useCurrentUser, useAllUsers, useUserCount } from '@/hooks/use-firebase';
 import { AdminUserCard } from '../admin/components/AdminUserCard';
 
 export default function UserDashboardClient() {
   const { user: clerkUser, isLoaded: clerkLoaded } = useUser();
   const { getToken } = useAuth();
-  const currentUser = useQuery(api.users.getCurrentUser);
-  const allUsers = useQuery(api.users.getAllUsers);
-  const userCount = useQuery(api.users.getUserCount);
+  const { currentUser } = useCurrentUser();
+  const { users: allUsers } = useAllUsers();
+  const { count: userCount } = useUserCount();
 
   const [jwtToken, setJwtToken] = useState<string | null>(null);
 
@@ -37,7 +36,7 @@ export default function UserDashboardClient() {
       <p className="text-gray-600 mb-4">Clerk User ID: {clerkUser?.id || 'Not signed in'}</p>
       <p className="text-gray-600 mb-4">JWT Token Status: {jwtToken || 'Checking...'}</p>
       <p className="text-gray-600 mb-4">Role: {currentUser?.role || 'Loading...'}</p>
-      <p className="text-gray-600 mb-4">Debug - User ID: {currentUser?._id || 'Not found'}</p>
+      <p className="text-gray-600 mb-4">Debug - User ID: {currentUser?.id || 'Not found'}</p>
       <p className="text-gray-600 mb-4">Debug - Email: {currentUser?.email || 'Not found'}</p>
       <p className="text-gray-600 mb-4">Debug - Total Users in DB: {userCount ?? 'Loading...'}</p>
 
@@ -46,7 +45,7 @@ export default function UserDashboardClient() {
           <h3 className="text-xl font-semibold text-black mb-4">All Users</h3>
           <div className="space-y-2">
             {allUsers?.map((u) => (
-              <AdminUserCard key={u._id} user={u} />
+              <AdminUserCard key={u.id} user={u} />
             ))}
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CheckCircle, XCircle, Check, X, AlertCircle, Sparkles, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +36,7 @@ export function SuccessErrorModal({
 }: SuccessErrorModalProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const router = useRouter();
 
   // Handle auto-close if duration is provided
   useEffect(() => {
@@ -62,6 +64,27 @@ export function SuccessErrorModal({
   const handleClose = () => {
     setIsAnimating(false);
     setTimeout(() => onOpenChange(false), 200);
+  };
+
+  const handleContinue = () => {
+    // Close modal
+    handleClose();
+    // Dispatch a global event so pages can react (e.g., trigger refresh)
+    try {
+      if (typeof window !== 'undefined' && window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent('success-modal-continue', { detail: { type, title, message } }));
+      }
+    } catch (e) {
+      // ignore
+    }
+    // Try to refresh the current route directly
+    try {
+      if (router && typeof (router as any).refresh === 'function') {
+        (router as any).refresh();
+      }
+    } catch (e) {
+      // ignore
+    }
   };
 
   const config = {
@@ -238,13 +261,13 @@ export function SuccessErrorModal({
               <>
                 {showCloseButton && (
                   <Button
-                    onClick={handleClose}
+                    onClick={handleContinue}
                     className={cn(
                       "px-8 py-6 text-lg font-semibold shadow-lg transition-all hover:scale-105",
                       config.buttonColor
                     )}
                   >
-                    Continue
+                      Continue
                   </Button>
                 )}
               </>
