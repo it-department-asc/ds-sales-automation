@@ -64,6 +64,13 @@ export default function ReportPage() {
         setCurrentPage(1);
     }, [selectedFrom, selectedTo, selectedBranch, selectedStatus, sortOrder]);
 
+    // If Period From is cleared, also clear Period To and disable it
+    useEffect(() => {
+        if (!selectedFrom) {
+            setSelectedTo(null);
+        }
+    }, [selectedFrom]);
+
     // Get unique branch codes for filtering
     const availableBranches = useMemo(() => {
         const source = localSummaries ?? allSalesSummaries;
@@ -120,7 +127,7 @@ export default function ReportPage() {
         data = data.sort((a, b) => {
             if (!a.period || !b.period) {
                 // If no period, sort by creation time
-                return sortOrder === 'desc' 
+                return sortOrder === 'desc'
                     ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
                     : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
             }
@@ -160,8 +167,8 @@ export default function ReportPage() {
                 // remove locally so UI updates immediately
                 try {
                     setLocalSummaries(prev => prev ? prev.filter(s => s.id !== id) : prev);
-                } catch (_) {}
-                try { router.refresh(); } catch (_) {}
+                } catch (_) { }
+                try { router.refresh(); } catch (_) { }
                 setNotificationType('success');
                 setNotificationTitle('Success!');
                 setNotificationMessage('Sales summary deleted successfully!');
@@ -209,45 +216,75 @@ export default function ReportPage() {
                 </div>
 
                 {/* Filter Section */}
-                <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+                <div className="bg-white shadow-md rounded-lg p-4 sm:p-6 mb-6">
+                    {/* Header */}
                     <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
                             <Filter className="h-5 w-5 text-gray-500" />
                             <h2 className="text-lg font-semibold">Filters</h2>
                         </div>
                         <ExcelExport
                             data={filteredData}
                             disabled={!filteredData || filteredData.length === 0}
+                            selectedPeriod={selectedFrom ? selectedFrom.toISOString().split('T')[0] : undefined}
+                            selectedPeriodDate={selectedFrom || null}
                         />
                     </div>
-                    <div className="flex flex-wrap gap-4">
-                        <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-gray-500" />
-                            <label className="text-sm font-medium">Period From:</label>
+
+                    {/* Helper text */}
+                    {!selectedFrom ? (
+                        <p className="text-xs text-gray-500 mb-4 bg-blue-50 p-2 rounded-md border border-blue-100">
+                            💡 Select a <strong>Period From</strong> date to enable Export (button enables only if filtered data exists).
+                        </p>
+                    ) : filteredData.length === 0 ? (
+                        <p className="text-xs text-red-600 mb-4 bg-red-50 p-2 rounded-md border border-red-100">
+                            ⚠️ No data for the selected period — Export is disabled.
+                        </p>
+                    ) : null}
+
+                    {/* Filter Controls */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
+                        {/* Period From */}
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs font-medium text-gray-600 flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                Period From
+                            </label>
                             <DatePicker
                                 selected={selectedFrom}
                                 onChange={(date: Date | null) => setSelectedFrom(date)}
-                                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 placeholderText="Select start date"
                             />
                         </div>
-                        <div className="flex items-center gap-2">
-                            <label className="text-sm font-medium">Period To:</label>
+
+                        {/* Period To */}
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs font-medium text-gray-600 flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                Period To
+                            </label>
                             <DatePicker
                                 selected={selectedTo}
                                 onChange={(date: Date | null) => setSelectedTo(date)}
                                 minDate={selectedFrom || undefined}
-                                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholderText="Select end date"
+                                disabled={!selectedFrom}
+                                className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${!selectedFrom ? 'bg-gray-100 opacity-60 cursor-not-allowed' : ''}`}
+                                aria-disabled={!selectedFrom}
+                                placeholderText={!selectedFrom ? "Select Period From first" : "Select end date"}
                             />
                         </div>
-                        <div className="flex items-center gap-2">
-                            <Store className="h-4 w-4 text-gray-500" />
-                            <label className="text-sm font-medium">Branch:</label>
+
+                        {/* Branch */}
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs font-medium text-gray-600 flex items-center gap-1">
+                                <Store className="h-3 w-3" />
+                                Branch
+                            </label>
                             <select
                                 value={selectedBranch}
                                 onChange={(e) => setSelectedBranch(e.target.value)}
-                                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             >
                                 <option value="all">All Branches</option>
                                 {availableBranches.map((branch) => (
@@ -257,40 +294,54 @@ export default function ReportPage() {
                                 ))}
                             </select>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <CheckCircle className="h-4 w-4 text-gray-500" />
-                            <label className="text-sm font-medium">Status:</label>
+
+                        {/* Status */}
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs font-medium text-gray-600 flex items-center gap-1">
+                                <CheckCircle className="h-3 w-3" />
+                                Status
+                            </label>
                             <select
                                 value={selectedStatus}
                                 onChange={(e) => setSelectedStatus(e.target.value)}
-                                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             >
                                 <option value="all">All Status</option>
                                 <option value="matched">Matched</option>
                                 <option value="mismatched">Mismatched</option>
                             </select>
                         </div>
-                        <Button
-                            onClick={handleClearFilters}
-                            variant="outline"
-                            className="flex items-center gap-2 px-3 py-2 h-auto text-gray-600 hover:text-gray-800 border-gray-300"
-                            disabled={!selectedFrom && !selectedTo && selectedBranch === "all" && selectedStatus === "all"}
-                        >
-                            <X className="h-4 w-4" />
-                            Clear Filters
-                        </Button>
+
+                        {/* Clear Filters */}
+                        <div className="flex flex-col gap-1 justify-end">
+                            <label className="text-xs font-medium text-gray-600 hidden sm:block">&nbsp;</label>
+                            <Button
+                                onClick={handleClearFilters}
+                                variant="outline"
+                                className="w-full flex items-center justify-center gap-2 px-3 py-2 h-[38px] text-sm text-gray-600 hover:text-gray-800 border-gray-300"
+                                disabled={!selectedFrom && !selectedTo && selectedBranch === "all" && selectedStatus === "all"}
+                                style={{ cursor: (!selectedFrom && !selectedTo && selectedBranch === "all" && selectedStatus === "all") ? 'not-allowed' : undefined }}
+                            >
+                                <X className="h-4 w-4" />
+                                Clear Filters
+                            </Button>
+                        </div>
                     </div>
-                    <div className="mt-4 text-sm text-gray-600">
-                        Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} records
+
+                    {/* Record count */}
+                    <div className="mt-4 pt-3 border-t border-gray-100 text-xs sm:text-sm text-gray-600">
+                        <span className="font-medium">{totalRecords}</span> records
+                        {totalRecords > 0 && (
+                            <span className="text-gray-400"> • Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalRecords)}</span>
+                        )}
                         {(selectedFrom || selectedTo || selectedBranch !== "all" || selectedStatus !== "all") && (
-                            <span className="ml-2">
-                                (filtered by {selectedFrom && `from: ${selectedFrom.toLocaleDateString()}`}
-                                {(selectedFrom && selectedTo) || (selectedFrom && selectedBranch !== "all") || (selectedFrom && selectedStatus !== "all") ? ", " : ""}
-                                {selectedTo && `to: ${selectedTo.toLocaleDateString()}`}
-                                {(selectedTo && selectedBranch !== "all") || (selectedTo && selectedStatus !== "all") ? ", " : ""}
-                                {selectedBranch !== "all" && `branch: ${selectedBranch}`}
-                                {(selectedBranch !== "all" && selectedStatus !== "all") ? ", " : ""}
-                                {selectedStatus !== "all" && `status: ${selectedStatus}`})
+                            <span className="block sm:inline sm:ml-2 mt-1 sm:mt-0 text-blue-600">
+                                Filtered: {[
+                                    selectedFrom && `from ${selectedFrom.toLocaleDateString()}`,
+                                    selectedTo && `to ${selectedTo.toLocaleDateString()}`,
+                                    selectedBranch !== "all" && selectedBranch,
+                                    selectedStatus !== "all" && selectedStatus
+                                ].filter(Boolean).join(', ')}
                             </span>
                         )}
                     </div>

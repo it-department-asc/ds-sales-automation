@@ -6,17 +6,75 @@ import { UserSalesSummary } from "@/lib/firestore/types";
 interface ExcelExportProps {
     data: UserSalesSummary[] | undefined;
     disabled?: boolean;
+    selectedPeriod?: string;
+    selectedPeriodDate?: Date | null;
 }
 
-export function ExcelExport({ data, disabled }: ExcelExportProps) {
+export function ExcelExport({ data, disabled, selectedPeriod, selectedPeriodDate }: ExcelExportProps) {
+    // Compare periods by local year/month/day to avoid timezone parsing issues.
+    const parseToLocalYMD = (period?: string): { y: number; m: number; d: number } | null => {
+        if (!period) return null;
+        // If period is YYYY-MM-DD, parse parts directly to local date
+        const isoMatch = period.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (isoMatch) {
+            const y = parseInt(isoMatch[1], 10);
+            const m = parseInt(isoMatch[2], 10) - 1;
+            const d = parseInt(isoMatch[3], 10);
+            return { y, m, d };
+        }
+
+        // Try Date parse for other formats (e.g., "January 04, 2026")
+        const dt = new Date(period);
+        if (!isNaN(dt.getTime())) {
+            return { y: dt.getFullYear(), m: dt.getMonth(), d: dt.getDate() };
+        }
+
+        // Try to match "Month DD, YYYY"
+        const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        const mMap: Record<string, number> = {};
+        monthNames.forEach((mn, i) => mMap[mn.toLowerCase()] = i);
+        const match = period.match(/^(\w+)\s+(\d{1,2}),\s*(\d{4})$/);
+        if (match) {
+            const [, monthName, dayStr, yearStr] = match;
+            const month = mMap[monthName.toLowerCase()];
+            if (month !== undefined) {
+                const y = parseInt(yearStr, 10);
+                const d = parseInt(dayStr, 10);
+                return { y, m: month, d };
+            }
+        }
+
+        return null;
+    };
+
+    const isSameYMD = (a?: string, b?: string) => {
+        const pa = parseToLocalYMD(a);
+        const pb = parseToLocalYMD(b);
+        if (!pa || !pb) return false;
+        return pa.y === pb.y && pa.m === pb.m && pa.d === pb.d;
+    };
+
+    const isSameYMDWithDate = (a?: string, date?: Date | null) => {
+        if (!date) return false;
+        const pa = parseToLocalYMD(a);
+        if (!pa) return false;
+        return pa.y === date.getFullYear() && pa.m === date.getMonth() && pa.d === date.getDate();
+    };
+
+    const hasData = !!(data && data.length > 0);
+    const buttonDisabled = !!disabled || !selectedPeriodDate || !hasData;
+
     const handleExport = () => {
-        if (!data || data.length === 0) {
-            alert('No sales summary data available to generate report.');
+        // Use the filtered `data` passed from parent (report page) so date range selection is respected
+        const filteredData = data ?? [];
+
+        if (!filteredData || filteredData.length === 0) {
+            alert('No sales summary data available to generate report for the selected period.');
             return;
         }
 
         // Group data by period
-        const groupedByPeriod = data.reduce((acc, summary) => {
+        const groupedByPeriod = filteredData.reduce((acc, summary) => {
             const period = summary.period || 'No Period';
             if (!acc[period]) {
                 acc[period] = [];
@@ -28,8 +86,10 @@ export function ExcelExport({ data, disabled }: ExcelExportProps) {
         // Create workbook
         const wb = XLSX.utils.book_new();
 
-        // Process each period
-        Object.entries(groupedByPeriod).forEach(([period, summaries]) => {
+        // Process each period, sorted by date ascending
+        Object.entries(groupedByPeriod)
+            .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
+            .forEach(([period, summaries]) => {
             // Prepare data in the specified column order
             const reportData = summaries.map(summary => ({
                 'Store ID': summary.storeId || '',
@@ -188,10 +248,33 @@ export function ExcelExport({ data, disabled }: ExcelExportProps) {
             XLSX.utils.book_append_sheet(wb, ws, uniqueSheetName);
         });
 
-        // Generate filename with current date
+        // Generate filename with current date and optionally include selected month
         const now = new Date();
         const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD format
-        const filename = `sales_report_${dateStr}.xlsx`;
+        let monthTag = '';
+        if (selectedPeriod) {
+            // Try to parse selectedPeriod into a date first
+            let monthLabel = '';
+            const parsed = new Date(selectedPeriod);
+            if (!isNaN(parsed.getTime())) {
+                monthLabel = parsed.toLocaleString('en-US', { month: 'long', year: 'numeric' }).replace(/\s+/g, '_');
+            } else {
+                // fallback: try to extract month name from string or sanitize
+                const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                const found = monthNames.find(m => selectedPeriod!.toLowerCase().includes(m.toLowerCase()));
+                if (found) monthLabel = `${found}_${(new Date()).getFullYear()}`;
+                else monthLabel = selectedPeriod.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 32);
+            }
+            monthTag = `_${monthLabel}`;
+        }
+
+        const filename = `sales_report${monthTag}_${dateStr}.xlsx`;
+
+        // Ensure workbook has sheets before saving
+        if (!wb.SheetNames || wb.SheetNames.length === 0) {
+            alert('No worksheet was generated for the selected data. Export cancelled.');
+            return;
+        }
 
         // Save file
         XLSX.writeFile(wb, filename);
@@ -201,7 +284,9 @@ export function ExcelExport({ data, disabled }: ExcelExportProps) {
         <Button
             onClick={handleExport}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={disabled}
+            disabled={buttonDisabled}
+            aria-disabled={buttonDisabled}
+            title={buttonDisabled ? (selectedPeriod ? 'No data for selected period' : 'Select a period first') : 'Export Excel'}
         >
             <Download className="h-4 w-4 mr-2" />
             Export Excel
