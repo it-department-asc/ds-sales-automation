@@ -190,7 +190,8 @@ export function UserSubmissionCalendar({ userSalesSummaries, className = "", cur
   // Create a map of dates to creation times for quick lookup
   const submissionTimes = new Map<string, string>();
   userSalesSummaries.forEach(summary => {
-    if (summary.period && summary._creationTime) {
+    const creationField = summary._creationTime ?? summary.createdAt ?? summary.created_at ?? null;
+    if (summary.period && creationField) {
       const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'];
       const monthMap: { [key: string]: number } = {};
@@ -205,7 +206,9 @@ export function UserSubmissionCalendar({ userSalesSummaries, className = "", cur
         if (month !== undefined) {
           const date = new Date(parseInt(year), month, parseInt(day));
           const dateKey = date.toDateString();
-          const creationTime = new Date(summary._creationTime).toLocaleString();
+          // Normalize creation time (could be number or string)
+          const createdAtDate = typeof creationField === 'number' ? new Date(creationField) : new Date(String(creationField));
+          const creationTime = isNaN(createdAtDate.getTime()) ? '' : createdAtDate.toLocaleString();
           submissionTimes.set(dateKey, creationTime);
         }
       }

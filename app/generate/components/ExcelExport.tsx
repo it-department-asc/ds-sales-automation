@@ -1,38 +1,10 @@
 import * as XLSX from 'xlsx';
 import { Button } from "../../../components/ui/button";
 import { Download } from "lucide-react";
-
-interface SalesSummary {
-    _id: string;
-    userId: string;
-    storeId?: string;
-    branch?: string;
-    region?: string;
-    province?: string;
-    city?: string;
-    lessor?: string;
-    mallName?: string;
-    cashCheck?: string | number;
-    charge?: string | number;
-    gc?: string | number;
-    creditNote?: string | number;
-    totalPayments?: string | number;
-    regularQty: number;
-    regularAmt: number | string;
-    nonRegularQty: number;
-    nonRegularAmt: number | string;
-    totalQtySold: number;
-    totalAmt: number | string;
-    transactionCount?: number;
-    headCount?: number;
-    period?: string;
-    branchCode?: string;
-    amountsMatch?: boolean;
-    createdAt: number;
-}
+import { UserSalesSummary } from "@/lib/firestore/types";
 
 interface ExcelExportProps {
-    data: SalesSummary[] | undefined;
+    data: UserSalesSummary[] | undefined;
     disabled?: boolean;
 }
 
@@ -51,7 +23,7 @@ export function ExcelExport({ data, disabled }: ExcelExportProps) {
             }
             acc[period].push(summary);
             return acc;
-        }, {} as Record<string, SalesSummary[]>);
+        }, {} as Record<string, UserSalesSummary[]>);
 
         // Create workbook
         const wb = XLSX.utils.book_new();
@@ -116,23 +88,30 @@ export function ExcelExport({ data, disabled }: ExcelExportProps) {
             });
 
             // Create subtotal row
-            const formatNumber = (num: number) => num.toLocaleString('en-US');
+            // Format currency with 2 decimal places, integers without decimals
+            const formatCurrency = (num: number) => num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const formatInteger = (num: number) => num.toLocaleString('en-US');
             const subtotalRow = {
                 'Store ID': '',
                 'Branch': 'SUBTOTAL -  ALBERTO STAND ALONE',
-                'Cash/Check': formatNumber(totalSums.cashCheck),
-                'Charge': formatNumber(totalSums.charge),
-                'GC': formatNumber(totalSums.gc),
-                'Credit Note': formatNumber(totalSums.creditNote),
-                'Total Payments': formatNumber(totalSums.totalPayments),
-                'Regular Qty': formatNumber(totalSums.regularQty),
-                'Regular Amt': formatNumber(totalSums.regularAmt),
-                'Non-Regular Qty': formatNumber(totalSums.nonRegularQty),
-                'Non-Regular Amt': formatNumber(totalSums.nonRegularAmt),
-                'Total Qty Sold': formatNumber(totalSums.totalQtySold),
-                'Total Amt': formatNumber(totalSums.totalAmt),
-                'Transaction Count': formatNumber(totalSums.transactionCount),
-                'Head Count': formatNumber(totalSums.headCount),
+                'Region': '',
+                'Province': '',
+                'City': '',
+                'Lessor': '',
+                'Mall Name': '',
+                'Cash/Check': formatCurrency(totalSums.cashCheck),
+                'Charge': formatCurrency(totalSums.charge),
+                'GC': formatCurrency(totalSums.gc),
+                'Credit Note': formatCurrency(totalSums.creditNote),
+                'Total Payments': formatCurrency(totalSums.totalPayments),
+                'Regular Qty': formatInteger(totalSums.regularQty),
+                'Regular Amt': formatCurrency(totalSums.regularAmt),
+                'Non-Regular Qty': formatInteger(totalSums.nonRegularQty),
+                'Non-Regular Amt': formatCurrency(totalSums.nonRegularAmt),
+                'Total Qty Sold': formatInteger(totalSums.totalQtySold),
+                'Total Amt': formatCurrency(totalSums.totalAmt),
+                'Transaction Count': formatInteger(totalSums.transactionCount),
+                'Head Count': formatInteger(totalSums.headCount),
             };
 
             // Add subtotal row to report data
@@ -144,27 +123,39 @@ export function ExcelExport({ data, disabled }: ExcelExportProps) {
             // Auto-size columns
             const colWidths = [
                 { wch: 12 }, // Store ID
-                { wch: 15 }, // Branch
+                { wch: 35 }, // Branch (wider for SUBTOTAL text)
                 { wch: 12 }, // Region
                 { wch: 15 }, // Province
                 { wch: 15 }, // City
                 { wch: 15 }, // Lessor
                 { wch: 20 }, // Mall Name
-                { wch: 12 }, // Cash/Check
-                { wch: 10 }, // Charge
-                { wch: 8 },  // GC
-                { wch: 12 }, // Credit Note
-                { wch: 15 }, // Total Payments
-                { wch: 12 }, // Regular Qty
-                { wch: 12 }, // Regular Amt
-                { wch: 15 }, // Non-Regular Qty
-                { wch: 15 }, // Non-Regular Amt
-                { wch: 15 }, // Total Qty Sold
-                { wch: 12 }, // Total Amt
+                { wch: 15 }, // Cash/Check
+                { wch: 12 }, // Charge
+                { wch: 12 },  // GC
+                { wch: 15 }, // Credit Note
+                { wch: 18 }, // Total Payments
+                { wch: 15 }, // Regular Qty
+                { wch: 15 }, // Regular Amt
+                { wch: 18 }, // Non-Regular Qty
+                { wch: 18 }, // Non-Regular Amt
+                { wch: 18 }, // Total Qty Sold
+                { wch: 15 }, // Total Amt
                 { wch: 18 }, // Transaction Count
-                { wch: 12 }, // Head Count
+                { wch: 15 }, // Head Count
             ];
             ws['!cols'] = colWidths;
+
+            // Set right alignment for numeric columns (columns H onwards = index 7+)
+            const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+            for (let R = range.s.r; R <= range.e.r; R++) {
+                for (let C = 7; C <= range.e.c; C++) { // Start from column H (Cash/Check)
+                    const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+                    if (ws[cellRef]) {
+                        if (!ws[cellRef].s) ws[cellRef].s = {};
+                        ws[cellRef].s.alignment = { horizontal: 'right' };
+                    }
+                }
+            }
 
             // Generate sheet name from period
             let sheetName = 'No_Period';

@@ -1,24 +1,33 @@
 'use client';
 
 import { useUser, useAuth } from "@clerk/nextjs";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { 
+  useUserCount, 
+  useUploadedData, 
+  useLatestAdminProductFile, 
+  useUploadedDataContent,
+  useSalesSummaryMutations,
+  useExistingPeriods 
+} from "@/hooks/use-firebase";
 import { useState, useEffect } from "react";
+import { useRouter } from 'next/navigation';
 import { ExcelBranchCompare } from "../../../components/ExcelBranchCompare";
 import { ValidationErrorModal } from "../../../components/ValidationErrorModal";
 import { SuccessErrorModal } from "../../../components/SuccessErrorModal";
 import { SalesSummaryReminderModal } from "../../components/SalesSummaryReminderModal";
 import { ExistingPeriodsConfirmDialog } from "../../../components/ExistingPeriodsConfirmDialog";
+import { RefreshCw } from "lucide-react";
 
 
 export function UserDashboard({ currentUser }: { currentUser: any }) {
   const { user: clerkUser, isLoaded: clerkLoaded } = useUser();
   const { getToken } = useAuth();
-  const userCount = useQuery(api.users.getUserCount);
-  const uploadedData = useQuery(api.uploadedData.getUploadedData);
-  const latestAdminProductFile = useQuery(api.uploadedData.getLatestAdminProductFile);
-  const saveSalesSummary = useMutation(api.userSalesSummaries.saveUserSalesSummary);
-  const existingPeriods = useQuery(api.userSalesSummaries.getExistingPeriods);
+  const { count: userCount } = useUserCount();
+  const { data: uploadedData, loading: uploadedDataLoading } = useUploadedData();
+  const { file: latestAdminProductFile, loading: adminFileLoading, refetch: refetchAdminFile } = useLatestAdminProductFile();
+  const { saveSalesSummary } = useSalesSummaryMutations();
+  const { periods: existingPeriods } = useExistingPeriods();
+  const router = useRouter();
   const existingPeriodsList = (existingPeriods || []).filter(Boolean) as string[];
 
   // Load admin data in chunks
@@ -28,11 +37,11 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
   const [loadedRows, setLoadedRows] = useState(0);
   const [totalRows, setTotalRows] = useState(0);
   const [loadedOffsets, setLoadedOffsets] = useState<Set<number>>(new Set());
-  const chunkQuery = useQuery(api.uploadedData.getUploadedDataContent, {
-    fileId: latestAdminProductFile?.fileId || "",
-    offset: currentOffset,
-    limit: 8000
-  });
+  const { content: chunkQuery } = useUploadedDataContent(
+    latestAdminProductFile?.fileId || "",
+    currentOffset,
+    8000
+  );
 
   useEffect(() => {
     if (chunkQuery && chunkQuery.data && chunkQuery.data.length > 0) {
@@ -78,6 +87,27 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
   const [clearTrigger, setClearTrigger] = useState<number>(0);
   const [pendingSaveData, setPendingSaveData] = useState<any>(null);
   const [existingPeriodsDialogOpen, setExistingPeriodsDialogOpen] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Reset chunk loading state
+      setAdminDataChunks([]);
+      setCurrentOffset(0);
+      setLoadedRows(0);
+      setTotalRows(0);
+      setLoadedOffsets(new Set());
+      // Refetch admin file
+      await refetchAdminFile();
+      setLastSyncTime(new Date());
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const performSave = async (saveData: any) => {
     try {
@@ -96,6 +126,28 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
       setNotificationTitle('Success!');
       setNotificationMessage('Sales summary saved successfully!');
       setNotificationModalOpen(true);
+      
+      // Refresh the page so UI reflects latest data (delay briefly to allow backend to settle)
+      try {
+        console.debug('Attempting to refresh router...');
+        setTimeout(() => {
+          try {
+            if (router && typeof (router as any).refresh === 'function') {
+              (router as any).refresh();
+              console.debug('router.refresh() called');
+            } else {
+              console.debug('router.refresh not available, falling back to full reload');
+              window.location.reload();
+            }
+          } catch (err) {
+            console.error('Refresh failed, falling back to full reload:', err);
+            window.location.reload();
+          }
+        }, 500);
+      } catch (e) {
+        console.error('Unexpected error when scheduling refresh:', e);
+        window.location.reload();
+      }
     } catch (error) {
       console.error('Error saving sales summary:', error);
       // Show error modal
@@ -167,6 +219,25 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
     testToken();
   }, [clerkLoaded, clerkUser, getToken]);
 
+  // Listen for modal Continue events to refresh the page
+  useEffect(() => {
+    const onModalContinue = () => {
+      try {
+        if (router && typeof (router as any).refresh === 'function') {
+          (router as any).refresh();
+        } else {
+          window.location.reload();
+        }
+      } catch (err) {
+        console.error('Error refreshing on modal continue:', err);
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener('success-modal-continue', onModalContinue as EventListener);
+    return () => window.removeEventListener('success-modal-continue', onModalContinue as EventListener);
+  }, [router]);
+
   // Only show ExcelB upload for user role, otherwise nothing
   if (currentUser?.role === 'user') {
     // Use the new query for admin product file
@@ -229,9 +300,52 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
 
     return (
       <div className="rounded-lg mt-8 max-w-8xl mx-auto">
+        {/* Refresh Button Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Sales Summary</h1>
+            {lastSyncTime && (
+              <span className="text-xs text-gray-500">
+                Last synced: {lastSyncTime.toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing || adminFileLoading}
+            className="inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors w-full sm:w-auto"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh Data'}
+          </button>
+        </div>
+
         <div className="mb-8">
           <div className="max-w-8xl mx-auto space-y-4">
-            {adminUploaded ? (
+            {adminFileLoading ? (
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-bold text-gray-900">Loading Product Data...</h2>
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Firebase
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 text-left">Please wait while we fetch the product data from the server</p>
+                    </div>
+                    <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-sm font-medium text-blue-700">Connecting to Firebase...</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : adminUploaded ? (
               <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -244,7 +358,7 @@ export function UserDashboard({ currentUser }: { currentUser: any }) {
                       <div className="flex items-center gap-2">
                         <h2 className="text-lg font-bold text-gray-900">Product Data Available</h2>
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Convex
+                          Firebase
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 text-left">Admin has uploaded the latest product file for processing</p>

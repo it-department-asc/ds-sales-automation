@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { useCurrentUser, useUploadedData, useUploadedDataMutations } from "@/hooks/use-firebase";
 import { Loading } from "../../../components/ui/loading";
 import { AccessDenied } from "../../../components/ui/access-denied";
 import { Button } from "../../../components/ui/button";
@@ -16,9 +14,33 @@ const ExcelA = dynamic(() => import("../../../components/ExcelA"));
 export default function ExcelViewPage() {
   const [localData, setLocalData] = useState<{ fileName: string; data: any[]; date: number } | null>(null);
 
-  const currentUser = useQuery(api.users.getCurrentUser);
-  const uploadedData = useQuery(api.uploadedData.getUploadedData);
-  const deleteData = useMutation(api.uploadedData.deleteUploadedData);
+  const { currentUser, loading: userLoading } = useCurrentUser();
+  const { data: uploadedData, refetch: refetchUploadedData } = useUploadedData();
+  const { deleteUploadedData } = useUploadedDataMutations();
+
+  // Local state for optimistic updates
+  const [localUploadedData, setLocalUploadedData] = useState<any[] | null>(null);
+
+  // Sync local state from hook
+  useEffect(() => {
+    if (uploadedData) setLocalUploadedData(uploadedData);
+  }, [uploadedData]);
+
+  // Called when a file is saved to Firebase
+  const handleFileSaved = async (fileInfo: { fileId: string; fileName: string }) => {
+    // Optimistically add to local state
+    const newFile = {
+      id: fileInfo.fileId,
+      fileId: fileInfo.fileId,
+      fileName: fileInfo.fileName,
+      createdAt: new Date().toISOString(),
+      uploaderName: currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.email : 'Unknown',
+      userId: currentUser?.id,
+    };
+    setLocalUploadedData(prev => prev ? [newFile, ...prev] : [newFile]);
+    // Also refetch to ensure consistency
+    await refetchUploadedData();
+  };
 
   const [ConfirmationDialog, confirm] = useConfirm("Delete File", "Are you sure you want to delete this uploaded file?");
 
@@ -50,7 +72,9 @@ export default function ExcelViewPage() {
     const confirmed = await confirm();
     if (confirmed) {
       try {
-        await deleteData({ fileId });
+        await deleteUploadedData(fileId);
+        // Optimistically remove from local state
+        setLocalUploadedData(prev => prev ? prev.filter(item => item.fileId !== fileId) : prev);
       } catch (error) {
         alert("Error deleting: " + error);
       }
@@ -65,7 +89,7 @@ export default function ExcelViewPage() {
     }
   };
 
-  if (currentUser === undefined || currentUser === null) {
+  if (userLoading || currentUser === undefined || currentUser === null) {
     return <Loading />;
   }
 
@@ -79,7 +103,7 @@ export default function ExcelViewPage() {
       <h1 className="text-3xl font-bold mb-2 text-center">Excel/CSV File Upload</h1>
       <p className="text-gray-600 text-center mb-6">Upload and manage product data files for sales processing</p>
 
-      <ExcelA />
+      <ExcelA onFileSaved={handleFileSaved} />
 
       {/* Saved Files Section */}
       <div className="bg-white shadow-md rounded-lg p-6">
@@ -87,20 +111,20 @@ export default function ExcelViewPage() {
           <FileText className="mr-2" />
           {currentUser?.role === "admin" ? "All Saved Files" : "Your Saved Files"}
         </h2>
-        {((uploadedData && uploadedData.length > 0) || localData) ? (
+        {((localUploadedData && localUploadedData.length > 0) || localData) ? (
           <div className="space-y-4">
-            {uploadedData?.map((item) => {
+            {localUploadedData?.map((item) => {
               const uploadDate = new Date(item.createdAt);
               const dateString = isNaN(uploadDate.getTime()) 
                 ? "Unknown date" 
                 : `${uploadDate.toLocaleDateString()} at ${uploadDate.toLocaleTimeString()}`;
               return (
-                <div key={item._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                <div key={item.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                   <div>
                     <p className="font-medium">{item.fileName}</p>
                     <p className="text-sm text-gray-500">Uploaded on {dateString}</p>
                     <p className="text-sm text-gray-600">By: {item.uploaderName}</p>
-                    <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">Stored in Convex</span>
+                    <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">Stored in Firebase</span>
                   </div>
                   <Button
                     onClick={() => handleDelete(item.fileId)}

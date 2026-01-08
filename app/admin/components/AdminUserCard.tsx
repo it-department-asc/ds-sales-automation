@@ -1,12 +1,11 @@
 'use client';
 
-import { useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { useUserMutations } from "@/hooks/use-firebase";
 import { useState } from "react";
 import { AdminUserForm } from "./AdminUserForm";
 
 interface User {
-  _id: string;
+  id?: string;
   firstName?: string;
   lastName?: string;
   email: string;
@@ -21,11 +20,13 @@ interface User {
 }
 
 export function AdminUserCard({ user }: { user: User }) {
-  const updateUserRole = useMutation(api.users.updateUserRole);
+  const { updateUserRole } = useUserMutations();
   const [isEditing, setIsEditing] = useState(false);
 
   const handleRoleChange = (newRole: "user" | "admin") => {
-    updateUserRole({ userId: user._id as any, role: newRole });
+    if (user.id) {
+      updateUserRole(user.id, newRole);
+    }
   };
 
   return (

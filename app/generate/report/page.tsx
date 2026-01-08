@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { useRouter } from "next/navigation";
+import { useCurrentUser, useAllSalesSummaries, useSalesSummaryMutations } from "@/hooks/use-firebase";
 import { Loading } from "../../../components/ui/loading";
 import { AccessDenied } from "../../../components/ui/access-denied";
 import { Button } from "../../../components/ui/button";
-import { Trash2, Filter, Calendar, Store, X, CheckCircle, FileX, ArrowUp, ArrowDown } from "lucide-react";
+import { Trash2, Filter, Calendar, Store, X, CheckCircle, FileX, ArrowUp, ArrowDown, RefreshCw } from "lucide-react";
 import { useConfirm } from "../../../hooks/use-confirm";
 import { SuccessErrorModal } from "../../../components/SuccessErrorModal";
 import { Pagination } from "../components/Pagination";
@@ -16,9 +16,12 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
 export default function ReportPage() {
-    const currentUser = useQuery(api.users.getCurrentUser);
-    const allSalesSummaries = useQuery(api.userSalesSummaries.getAllSalesSummaries);
-    const deleteSalesSummary = useMutation(api.userSalesSummaries.deleteSalesSummary);
+    const { currentUser, loading: userLoading } = useCurrentUser();
+    const { summaries: allSalesSummaries, refetch: refetchSummaries } = useAllSalesSummaries();
+    const { deleteSalesSummary } = useSalesSummaryMutations();
+    const [localSummaries, setLocalSummaries] = useState<any[] | null>(null);
+    const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     const [selectedFrom, setSelectedFrom] = useState<Date | null>(null);
     const [selectedTo, setSelectedTo] = useState<Date | null>(null);
@@ -35,6 +38,26 @@ export default function ReportPage() {
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // Default to latest period first
 
     const [ConfirmationDialog, confirm] = useConfirm("Delete Sales Summary", "Are you sure you want to delete this sales summary? This action cannot be undone.");
+    const router = useRouter();
+
+    // keep a local copy so we can optimistically update the UI
+    // Only sync when allSalesSummaries changes (not localSummaries) to preserve optimistic updates
+    useEffect(() => {
+        if (allSalesSummaries) {
+            setLocalSummaries(allSalesSummaries);
+            setLastSyncTime(new Date());
+        }
+    }, [allSalesSummaries]);
+
+    // Manual refresh handler
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            await refetchSummaries();
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
 
     // Reset to page 1 when filters or sort change
     useEffect(() => {
@@ -43,8 +66,9 @@ export default function ReportPage() {
 
     // Get unique branch codes for filtering
     const availableBranches = useMemo(() => {
-        if (!allSalesSummaries) return [];
-        const branches = allSalesSummaries
+        const source = localSummaries ?? allSalesSummaries;
+        if (!source) return [];
+        const branches = source
             .map(summary => summary.branchCode)
             .filter(Boolean)
             .filter((branch, index, arr) => arr.indexOf(branch) === index)
@@ -54,7 +78,7 @@ export default function ReportPage() {
 
     // Filter data based on selected period and branch
     const filteredData = useMemo(() => {
-        let data = allSalesSummaries || [];
+        let data = localSummaries ?? allSalesSummaries ?? [];
 
         // Always apply date filters if set
         data = data.filter(summary => {
@@ -97,8 +121,8 @@ export default function ReportPage() {
             if (!a.period || !b.period) {
                 // If no period, sort by creation time
                 return sortOrder === 'desc' 
-                    ? new Date(b._creationTime).getTime() - new Date(a._creationTime).getTime()
-                    : new Date(a._creationTime).getTime() - new Date(b._creationTime).getTime();
+                    ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                    : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
             }
             const dateA = new Date(a.period);
             const dateB = new Date(b.period);
@@ -106,7 +130,7 @@ export default function ReportPage() {
         });
 
         return data;
-    }, [allSalesSummaries, selectedFrom, selectedTo, selectedBranch, selectedStatus, sortOrder]);
+    }, [localSummaries, allSalesSummaries, selectedFrom, selectedTo, selectedBranch, selectedStatus, sortOrder]);
 
     // Pagination
     const totalRecords = filteredData.length;
@@ -132,7 +156,12 @@ export default function ReportPage() {
         const confirmed = await confirm();
         if (confirmed) {
             try {
-                await deleteSalesSummary({ id: id as any });
+                await deleteSalesSummary(id);
+                // remove locally so UI updates immediately
+                try {
+                    setLocalSummaries(prev => prev ? prev.filter(s => s.id !== id) : prev);
+                } catch (_) {}
+                try { router.refresh(); } catch (_) {}
                 setNotificationType('success');
                 setNotificationTitle('Success!');
                 setNotificationMessage('Sales summary deleted successfully!');
@@ -146,7 +175,7 @@ export default function ReportPage() {
         }
     };
 
-    if (currentUser === undefined || currentUser === null) {
+    if (userLoading || currentUser === undefined || currentUser === null) {
         return <Loading />;
     }
 
@@ -158,8 +187,25 @@ export default function ReportPage() {
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
             <div className="container mx-auto p-6 max-w-8xl">
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold mb-2 text-center">Sales Summaries Report</h1>
-                    <p className="text-gray-600 text-center">View and manage all user sales summaries</p>
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                        <h1 className="text-3xl font-bold text-center">Sales Summaries Report</h1>
+                        <button
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                            className="p-2 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+                            title="Refresh data"
+                        >
+                            <RefreshCw className={`h-5 w-5 text-gray-500 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        </button>
+                    </div>
+                    <p className="text-gray-600 text-center">
+                        View and manage all user sales summaries
+                        {lastSyncTime && (
+                            <span className="text-gray-400 text-sm ml-2">
+                                • Last synced: {lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        )}
+                    </p>
                 </div>
 
                 {/* Filter Section */}
@@ -311,7 +357,7 @@ export default function ReportPage() {
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {paginatedData.map((summary, index) => (
-                                    <tr key={summary._id} className="hover:bg-gray-50 even:bg-gray-50 group">
+                                    <tr key={summary.id} className="hover:bg-gray-50 even:bg-gray-50 group">
                                         <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
                                             <div className="text-sm font-medium text-gray-900">
                                                 {summary.branchCode.split(' ')[0]}<br />{summary.branchCode.split(' ')[1] || ''}
@@ -393,10 +439,10 @@ export default function ReportPage() {
                                         </td>
                                         <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-900">
                                             <>
-                                                {new Date(summary._creationTime).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                                {new Date(summary.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                                                 <br />
                                                 <span className="text-xs text-gray-500">
-                                                    {new Date(summary._creationTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                                    {new Date(summary.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
                                             </>
                                         </td>
@@ -424,7 +470,7 @@ export default function ReportPage() {
                                         </td>
                                         <td className={`px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm font-medium sticky right-0 border-gray-200 z-10 group-hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                                             <Button
-                                                onClick={() => handleDelete(summary._id)}
+                                                onClick={() => handleDelete(summary.id!)}
                                                 variant="destructive"
                                                 size="sm"
                                             >

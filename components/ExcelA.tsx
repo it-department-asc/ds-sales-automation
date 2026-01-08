@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../convex/_generated/api";
+import { useUploadedDataMutations } from "@/hooks/use-firebase";
 import * as XLSX from "xlsx";
 import { Button } from "../components/ui/button";
 import { Upload } from "lucide-react";
 import { SuccessErrorModal } from "./SuccessErrorModal";
 
-export default function ExcelA() {
+interface ExcelAProps {
+  onFileSaved?: (fileInfo: { fileId: string; fileName: string }) => void;
+}
+
+export default function ExcelA({ onFileSaved }: ExcelAProps) {
   const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<any[]>([]);
   const [fileName, setFileName] = useState<string>("");
@@ -16,8 +19,9 @@ export default function ExcelA() {
   const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
   const [notificationTitle, setNotificationTitle] = useState<string>('');
   const [notificationMessage, setNotificationMessage] = useState<string>('');
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
-  const saveToConvex = useMutation(api.uploadedData.saveUploadedData);
+  const { saveUploadedData, loading: userLoading, currentUser } = useUploadedDataMutations();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -51,8 +55,9 @@ export default function ExcelA() {
     }
   };
 
-  const handleSaveToConvex = async () => {
+  const handleSaveToFirebase = async () => {
     if (parsedData.length > 0) {
+      setIsSaving(true);
       try {
         const fileId = crypto.randomUUID();
         const chunkSize = 8000;
@@ -62,25 +67,31 @@ export default function ExcelA() {
         }
         // Save each chunk
         for (let partition = 0; partition < chunks.length; partition++) {
-          await saveToConvex({
+          await saveUploadedData({
             fileId,
             fileName,
             partition,
             data: chunks[partition],
           });
         }
+        // Notify parent that file was saved
+        onFileSaved?.({ fileId, fileName });
+        
         setNotificationType('success');
         setNotificationTitle('Success!');
-        setNotificationMessage('Data saved to Convex!');
+        setNotificationMessage('Data saved to Firebase!');
         setNotificationModalOpen(true);
         setParsedData([]);
         setFile(null);
         setFileName("");
       } catch (error) {
+        console.error('Firebase save error:', error);
         setNotificationType('error');
         setNotificationTitle('Error');
-        setNotificationMessage('Failed to save data to Convex. Please try again.');
+        setNotificationMessage(error instanceof Error ? error.message : 'Failed to save data to Firebase. Please try again.');
         setNotificationModalOpen(true);
+      } finally {
+        setIsSaving(false);
       }
     }
   };
@@ -122,8 +133,11 @@ export default function ExcelA() {
               <Button onClick={handleSaveToLocalStorage} variant="outline">
                 Save to LocalStorage
               </Button>
-              <Button onClick={handleSaveToConvex}>
-                Save to Convex
+              <Button 
+                onClick={handleSaveToFirebase} 
+                disabled={isSaving || userLoading || !currentUser}
+              >
+                {isSaving ? 'Saving...' : userLoading ? 'Loading...' : 'Save to Firebase'}
               </Button>
             </div>
           </div>

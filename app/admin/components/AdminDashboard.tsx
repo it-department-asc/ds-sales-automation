@@ -1,22 +1,54 @@
 'use client';
 
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { useState, useMemo } from "react";
+import { useAllUsers, useAllSalesSummaries } from "@/hooks/use-firebase";
+import { useState, useMemo, useEffect } from "react";
 import { UserActionsMenu } from "./UserActionsMenu";
 import { EditUserModal } from "./EditUserModal";
 import { TableFilters } from "./TableFilters";
 import { TextHighlight } from "./TextHighlight";
 import { EmptyState } from "./EmptyState";
 import { useToast } from "@/hooks/use-toast";
-import { Id } from "../../../convex/_generated/dataModel";
-import { Users, ChevronLeft, ChevronRight } from "lucide-react";
+import { Users, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 
 export function AdminDashboard() {
-    const allUsers = useQuery(api.users.getAllUsers);
-    const allSalesSummaries = useQuery(api.userSalesSummaries.getAllSalesSummaries);
-    const [editingUserId, setEditingUserId] = useState<Id<"users"> | null>(null);
+    const { users: allUsers, refetch: refetchUsers } = useAllUsers();
+    const { summaries: allSalesSummaries } = useAllSalesSummaries();
+    const [editingUserId, setEditingUserId] = useState<string | null>(null);
     const { toast } = useToast();
+
+    // Local state for optimistic updates
+    const [localUsers, setLocalUsers] = useState<any[] | null>(null);
+    const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // Sync local users from hook (only when hook data changes)
+    useEffect(() => {
+        if (allUsers) {
+            setLocalUsers(allUsers);
+            setLastSyncTime(new Date());
+        }
+    }, [allUsers]);
+
+    // Manual refresh handler
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            await refetchUsers();
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
+    // Refetch users when tab becomes visible (catches new user registrations)
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                refetchUsers();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [refetchUsers]);
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
@@ -27,6 +59,15 @@ export function AdminDashboard() {
     // Pagination states
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
+
+    // Optimistic update handlers
+    const handleUserDeleted = (userId: string) => {
+        setLocalUsers(prev => prev ? prev.filter(u => u.id !== userId) : prev);
+    };
+
+    const handleUserUpdated = (userId: string, updates: Partial<any>) => {
+        setLocalUsers(prev => prev ? prev.map(u => u.id === userId ? { ...u, ...updates } : u) : prev);
+    };
 
     // Create mapping of user IDs to their latest sales summary
     const userSalesSummaryMap = useMemo(() => {
@@ -59,9 +100,10 @@ export function AdminDashboard() {
 
     // Filtered users based on search and filters
     const filteredUsers = useMemo(() => {
-        if (!allUsers) return [];
+        const source = localUsers ?? allUsers;
+        if (!source) return [];
 
-        return allUsers.filter(user => {
+        return source.filter(user => {
             // Search filter
             const searchLower = searchTerm.toLowerCase();
             const matchesSearch = !searchTerm ||
@@ -83,7 +125,7 @@ export function AdminDashboard() {
             const matchesStatus = !statusFilter || user.status === statusFilter;
 
             // Sales summary filter
-            const userSummary = userSalesSummaryMap.get(user._id);
+            const userSummary = userSalesSummaryMap.get(user.id);
             const hasSubmittedToday = userSummary && isTodayPhilippineTime(new Date(userSummary.createdAt));
             const matchesSalesSummaryFilter = !salesSummaryFilter ||
                 (salesSummaryFilter === 'submitted' && hasSubmittedToday) ||
@@ -91,7 +133,7 @@ export function AdminDashboard() {
 
             return matchesSearch && matchesRole && matchesStatus && matchesSalesSummaryFilter;
         });
-    }, [allUsers, searchTerm, roleFilter, statusFilter, salesSummaryFilter, userSalesSummaryMap]);
+    }, [localUsers, allUsers, searchTerm, roleFilter, statusFilter, salesSummaryFilter, userSalesSummaryMap]);
 
     // Pagination logic
     const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
@@ -106,7 +148,7 @@ export function AdminDashboard() {
         setCurrentPage(1);
     }, [searchTerm, roleFilter, statusFilter, salesSummaryFilter]);
 
-    const handleEdit = (userId: Id<"users">) => {
+    const handleEdit = (userId: string) => {
         setEditingUserId(userId);
     };
 
@@ -121,6 +163,12 @@ export function AdminDashboard() {
             description: "The user information has been saved.",
             className: "border-green-200 bg-green-50 text-green-900"
         });
+    };
+
+    const handleUserEditSuccess = (userId: string, updates: Partial<any>) => {
+        // Optimistically update local state
+        handleUserUpdated(userId, updates);
+        handleSuccess();
     };
 
     const handleClearFilters = () => {
@@ -139,10 +187,25 @@ export function AdminDashboard() {
                             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                                 <Users className="h-5 w-5" />
                                 All Users
+                                <button
+                                    onClick={handleRefresh}
+                                    disabled={isRefreshing}
+                                    className="ml-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+                                    title="Refresh user data"
+                                >
+                                    <RefreshCw className={`h-4 w-4 text-gray-500 ${isRefreshing ? 'animate-spin' : ''}`} />
+                                </button>
                             </h2>
-                            <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-                                Manage user accounts and permissions
-                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                <p className="text-xs sm:text-sm text-gray-500">
+                                    Manage user accounts and permissions
+                                </p>
+                                {lastSyncTime && (
+                                    <span className="text-xs text-gray-400">
+                                        • Last synced: {lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                         {/* Mobile count badge */}
                         <div className="sm:hidden flex items-center space-x-2">
@@ -157,9 +220,9 @@ export function AdminDashboard() {
                             <span className="text-gray-500">Total:</span>
                             <span className="font-semibold text-gray-900">{filteredUsers?.length || 0}</span>
                             <span className="text-gray-500">users</span>
-                            {filteredUsers?.length !== allUsers?.length && (
+                            {filteredUsers?.length !== (localUsers ?? allUsers)?.length && (
                                 <span className="text-gray-400 text-xs">
-                                    (filtered from {allUsers?.length || 0})
+                                    (filtered from {(localUsers ?? allUsers)?.length || 0})
                                 </span>
                             )}
                         </div>
@@ -206,7 +269,7 @@ export function AdminDashboard() {
                                 <tr>
                                     <td colSpan={13} className="px-4 sm:px-8 py-2 sm:py-4">
                                         <EmptyState
-                                            type={allUsers?.length === 0 ? 'no-users' : 'no-results'}
+                                            type={(localUsers ?? allUsers)?.length === 0 ? 'no-users' : 'no-results'}
                                             searchTerm={searchTerm}
                                             onClearFilters={handleClearFilters}
                                         />
@@ -214,7 +277,7 @@ export function AdminDashboard() {
                                 </tr>
                             ) : (
                                 paginatedUsers?.map((user, index) => (
-                                    <tr key={user._id} className="hover:bg-gray-50 even:bg-gray-50 transition-colors cursor-pointer group" onClick={() => handleEdit(user._id)}>
+                                    <tr key={user.id} className="hover:bg-gray-50 even:bg-gray-50 transition-colors cursor-pointer group" onClick={() => handleEdit(user.id!)}>
                                         <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500 text-left">
                                             <TextHighlight text={user.storeId || '-'} searchTerm={searchTerm} />
                                         </td>
@@ -259,7 +322,7 @@ export function AdminDashboard() {
                                         </td>
                                         <td className="px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-left">
                                             {(() => {
-                                                const userSummary = userSalesSummaryMap.get(user._id);
+                                                const userSummary = userSalesSummaryMap.get(user.id);
                                                 const hasSubmittedToday = userSummary && isTodayPhilippineTime(new Date(userSummary.createdAt));
 
                                                 if (hasSubmittedToday) {
@@ -308,8 +371,10 @@ export function AdminDashboard() {
                                         </td>
                                         <td className={`px-4 sm:px-8 py-2 sm:py-4 whitespace-nowrap text-sm sticky right-0 border-l border-gray-200 text-left ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} group-hover:bg-gray-50`} onClick={(e) => e.stopPropagation()}>
                                             <UserActionsMenu
-                                                user={{ ...user, status: user.status || "active" }}
-                                                onEdit={() => handleEdit(user._id)}
+                                                user={{ ...user, id: user.id!, status: user.status || "active" }}
+                                                onEdit={() => handleEdit(user.id!)}
+                                                onUserDeleted={handleUserDeleted}
+                                                onUserUpdated={handleUserUpdated}
                                             />
                                         </td>
                                     </tr>
@@ -374,8 +439,10 @@ export function AdminDashboard() {
             {/* Edit Modal */}
             <EditUserModal
                 userId={editingUserId}
+                user={editingUserId ? (localUsers ?? allUsers)?.find(u => u.id === editingUserId) ?? null : null}
                 onClose={handleClose}
                 onSuccess={handleSuccess}
+                onUserUpdated={handleUserUpdated}
             />
         </div>
     );
